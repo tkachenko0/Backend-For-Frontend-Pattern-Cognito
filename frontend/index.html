@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <title>BFF App</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div id="app">
+      <div id="loading">Loading...</div>
+      <div id="authenticated" style="display: none">
+        <h1>Welcome, <span id="username"></span></h1>
+
+        <button onclick="fetchProtected()">Check Protected Access</button>
+        <button onclick="logout()">Logout</button>
+
+        <h2>Protected Data:</h2>
+        <pre id="protected-data"></pre>
+
+        <h2>Counter Test:</h2>
+        <button onclick="incrementCounter()">Increment Counter</button>
+        <button onclick="checkCounter()">Check Counter</button>
+        <pre id="counter-data"></pre>
+      </div>
+
+      <div id="unauthenticated" style="display: none">
+        <h1>Please login</h1>
+
+        <button onclick="login()">Login</button>
+
+        <button onclick="fetchProtected()">Check Protected Access</button>
+
+        <h2>Protected Data:</h2>
+        <pre id="protected-data"></pre>
+      </div>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>

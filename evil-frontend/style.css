@@ -1,0 +1,44 @@
+body {
+  font-family: Arial, sans-serif;
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 20px;
+  background: #ffe6e6;
+}
+h1 {
+  color: #cc0000;
+}
+.attack {
+  background: white;
+  padding: 20px;
+  margin: 20px 0;
+  border: 2px solid #cc0000;
+  border-radius: 5px;
+}
+button,
+a {
+  background: #cc0000;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  margin: 5px;
+}
+button:hover,
+a:hover {
+  background: #990000;
+}
+.info {
+  background: #fff3cd;
+  padding: 15px;
+  margin: 20px 0;
+}
+.route {
+  font-family: monospace;
+  background: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+}

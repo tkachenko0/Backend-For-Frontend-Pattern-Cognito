@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Evil Site - CSRF Attack Demo</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <h1>Evil Site - CSRF Attack Demonstration</h1>
+
+    <div class="info">
+      <strong>Setup:</strong> First, login to the legitimate app at
+      <a href="http://localhost:8080" target="_blank">http://localhost:8080</a>
+    </div>
+
+    <div class="attack">
+      <h2>GET /public</h2>
+      <p>Access public endpoint via fetch:</p>
+      <button onclick="fetchPublic()">Fetch Public Data</button>
+      <pre id="public-result"></pre>
+    </div>
+
+    <div class="attack">
+      <h2>GET /protected</h2>
+      <p>Access protected endpoint (requires authentication):</p>
+      <button onclick="fetchProtected()">Fetch Protected Data</button>
+      <pre id="protected-result"></pre>
+    </div>
+
+    <div class="attack">
+      <h2>GET /counter</h2>
+      <p>Check counter value:</p>
+      <button onclick="fetchCounter()">Check Counter</button>
+      <pre id="counter-result"></pre>
+    </div>
+
+    <div class="attack">
+      <h2>POST /counter/increment</h2>
+      <p>Increment counter (mutation despite CORS):</p>
+      <button onclick="postIncrementCounter()">Increment Counter</button>
+      <pre id="increment-result"></pre>
+    </div>
+
+    <div class="attack">
+      <h2>POST /logout (Form Submission)</h2>
+      <p>Submit form to logout endpoint:</p>
+      <form action="http://localhost:3000/logout" method="POST" target="_blank">
+        <button type="submit">Form POST Logout</button>
+      </form>
+    </div>
+
+    <div class="attack">
+      <h2>POST /logout (Fetch)</h2>
+      <p>Logout via JavaScript fetch:</p>
+      <button onclick="postLogout()">Fetch POST Logout</button>
+      <pre id="post-logout-result"></pre>
+    </div>
+
+    <div class="attack">
+      <h2>PUT /logout</h2>
+      <p>Logout via PUT request:</p>
+      <button onclick="putLogout()">PUT Logout</button>
+      <pre id="put-logout-result"></pre>
+    </div>
+
+    <script>
+      async function fetchPublic() {
+        const result = document.getElementById("public-result");
+        try {
+          const res = await fetch("http://localhost:3000/public");
+          result.textContent = `${res.status} ${res.statusText}\n${JSON.stringify(await res.json(), null, 2)}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}`;
+        }
+      }
+
+      async function fetchProtected() {
+        const result = document.getElementById("protected-result");
+        try {
+          const res = await fetch("http://localhost:3000/protected", {
+            credentials: "include",
+          });
+          result.textContent = `${res.status} ${res.statusText}\n${JSON.stringify(await res.json(), null, 2)}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}`;
+        }
+      }
+
+      async function fetchCounter() {
+        const result = document.getElementById("counter-result");
+        try {
+          const res = await fetch("http://localhost:3000/counter");
+          result.textContent = `${res.status} ${res.statusText}\n${JSON.stringify(await res.json(), null, 2)}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}`;
+        }
+      }
+
+      async function postIncrementCounter() {
+        const result = document.getElementById("increment-result");
+        try {
+          const res = await fetch("http://localhost:3000/counter/increment", {
+            method: "POST",
+          });
+          result.textContent = `${res.status} ${res.statusText}\n${JSON.stringify(await res.json(), null, 2)}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}\n\nCORS blocked response, but check if counter increased!`;
+        }
+      }
+
+      async function postLogout() {
+        const result = document.getElementById("post-logout-result");
+        try {
+          const res = await fetch("http://localhost:3000/logout", {
+            method: "POST",
+            credentials: "include",
+          });
+          result.textContent = `${res.status} ${res.statusText}\n${await res.text()}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}`;
+        }
+      }
+
+      async function putLogout() {
+        const result = document.getElementById("put-logout-result");
+        try {
+          const res = await fetch("http://localhost:3000/logout", {
+            method: "PUT",
+            credentials: "include",
+          });
+          result.textContent = `${res.status} ${res.statusText}\n${await res.text()}`;
+        } catch (e) {
+          result.textContent = `Error: ${e.message}`;
+        }
+      }
+    </script>
+  </body>
+</html>
