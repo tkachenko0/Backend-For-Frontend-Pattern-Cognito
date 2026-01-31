@@ -1,21 +1,29 @@
 services:
-  api:
-    build: ./api
+  bff-proxy:
+    build: ./bff-proxy
     env_file:
-      - .env
+      # - .env.cognito
+      # - .env.entra
+      - .env.keycloak
     ports:
-      - "3000:3000"
-    volumes:
-      - ./api:/app
-      - /app/node_modules
-    command: npm run dev
+      - "8080:8080"
+    depends_on:
+      - backend
+      - keycloak
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
 
   frontend:
     image: nginx:alpine
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
     ports:
-      - "8080:80"
+      - "5000:80"
 
   evil-frontend:
     image: nginx:alpine
@@ -23,3 +31,17 @@ services:
       - ./evil-frontend:/usr/share/nginx/html:ro
     ports:
       - "9000:80"
+
+  keycloak:
+    build: ./keycloak
+    container_name: test-keycloak
+    ports:
+      - "3030:3030"
+    environment:
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KEYCLOAK_ADMIN: "admin"
+      KEYCLOAK_ADMIN_PASSWORD: "admin"
+      KC_HOSTNAME: "localhost"
+      KC_HOSTNAME_PORT: "3030"
+      KC_HOSTNAME_STRICT: "false"

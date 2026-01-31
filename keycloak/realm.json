@@ -1,0 +1,46 @@
+{
+  "realm": "bff-realm",
+  "enabled": true,
+  "accessTokenLifespan": 180,
+  "ssoSessionIdleTimeout": 600,
+  "ssoSessionMaxLifespan": 600,
+  "refreshTokenMaxReuse": 0,
+  "revokeRefreshToken": true,
+  "clients": [
+    {
+      "clientId": "bff-client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "bff-client-secret",
+      "redirectUris": [
+        "http://localhost:8080/auth/callback",
+        "http://localhost:8080/auth/signout-callback"
+      ],
+      "webOrigins": ["http://localhost:8080"],
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "user",
+      "enabled": true,
+      "email": "test@example.com",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

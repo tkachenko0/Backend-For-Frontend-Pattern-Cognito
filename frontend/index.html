@@ -2,36 +2,67 @@
 <html>
   <head>
     <title>BFF App</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div id="app">
       <div id="loading">Loading...</div>
-      <div id="authenticated" style="display: none">
-        <h1>Welcome, <span id="username"></span></h1>
 
-        <button onclick="fetchProtected()">Check Protected Access</button>
-        <button onclick="logout()">Logout</button>
+      <section id="auth-section">
+        <div id="authenticated" style="display: none">
+          <h1>Welcome, <span id="username"></span></h1>
+          <button onclick="logout()">Logout</button>
+        </div>
 
+        <div id="unauthenticated" style="display: none">
+          <h1>Please login</h1>
+          <button onclick="login()">Login</button>
+        </div>
+      </section>
+
+      <section id="profile-section">
+        <h2>Profile:</h2>
+        <pre id="profile-data"></pre>
+      </section>
+
+      <section id="protected-section">
         <h2>Protected Data:</h2>
+        <button onclick="fetchProtected()">Protected</button>
         <pre id="protected-data"></pre>
+      </section>
 
+      <section id="counter-section">
         <h2>Counter Test:</h2>
+        <button onclick="checkCounter()">Public</button>
         <button onclick="incrementCounter()">Increment Counter</button>
-        <button onclick="checkCounter()">Check Counter</button>
         <pre id="counter-data"></pre>
-      </div>
+      </section>
 
-      <div id="unauthenticated" style="display: none">
-        <h1>Please login</h1>
+      <section id="returnto-section">
+        <h2>Test ReturnTo:</h2>
+        <button onclick="testReturnTo('/profile')">Login - /profile</button>
+        <button onclick="testReturnTo('/dashboard')">Login - /dashboard</button>
+        <button onclick="testReturnTo('/settings')">Login - /settings</button>
+        <p id="current-path">Current path: <span id="path-value"></span></p>
+      </section>
 
-        <button onclick="login()">Login</button>
+      <section id="userinfo-section">
+        <h2>UserInfo Endpoint:</h2>
+        <button onclick="fetchUserInfo()">Get Fresh User Info</button>
+        <pre id="userinfo-data"></pre>
+      </section>
 
-        <button onclick="fetchProtected()">Check Protected Access</button>
+      <section id="discovery-section">
+        <h2>OpenID Discovery:</h2>
+        <button onclick="fetchDiscovery()">Get Provider Configuration</button>
+        <pre id="discovery-data"></pre>
+      </section>
 
-        <h2>Protected Data:</h2>
-        <pre id="protected-data"></pre>
-      </div>
+      <section id="jwks-section">
+        <h2>JWKS:</h2>
+        <button onclick="fetchJwks()">Get JWKS</button>
+        <pre id="jwks-data"></pre>
+      </section>
     </div>
     <script src="app.js"></script>
   </body>
