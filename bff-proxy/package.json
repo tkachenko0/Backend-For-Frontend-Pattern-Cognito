@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "oauth2-bff-proxy",
   "version": "1.0.0",
   "type": "module",
   "main": "dist/index.js",
