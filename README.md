@@ -345,7 +345,6 @@ Without state verification, an attacker can exploit the OAuth flow:
 - [BFF](https://auth0.com/blog/the-backend-for-frontend-pattern-bff/)
 - [AWS Endpoints](https://docs.aws.amazon.com/cognito/latest/developerguide/revocation-endpoint.html)
 - [MSAL ISSUE 62](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/602)
-- [JWKS and Token Validation](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-verifying-a-jwt.html)
 - [OpenID Connect on Microsoft identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc)
 - [OAuth 2.0 authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 - [OAuth 2.0 RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749) - Official OAuth 2.0 specification
