@@ -398,7 +398,6 @@ Result: State mismatch, request rejected
 - [ ] Use code also in the logout endpoints
 - [ ] Add explanation for state
 - [ ] Add explanation for nonce
-- [ ] Add explanation for sub mismatch
 - [ ] Add other explanation on vulnerabilities prevented
 
 ## Useful Links
