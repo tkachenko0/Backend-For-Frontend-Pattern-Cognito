@@ -1,4 +1,4 @@
-# Oauth2 Backend for Frontend Proxy
+# OAuth2 Backend for Frontend Proxy
 
 Reusable Backend-for-Frontend (BFF) proxy with OAuth 2.0 + PKCE authentication. Tokens are stored in HTTP-only cookies, and authenticated requests are proxied to your backend with user context injected as headers.
 
