@@ -1,4 +1,4 @@
-# Autenticazione Web Sicura: Da XSS a OAuth2
+# Il Browser che sapeva troppo
 
 ## Introduzione
 
@@ -329,8 +329,6 @@ OAuth2 è il protocollo che permette a un'app di accedere alle tue risorse senza
 
 Pensate a quando fate "Login con Google" su un sito. Non state dando la vostra password di Google a quel sito. State dicendo a Google: "Autorizza questo sito ad accedere al mio profilo." Google vi fa autenticare (se non lo siete già), vi chiede conferma, e poi dà al sito un token che rappresenta quella autorizzazione.
 
-Questo è geniale per diversi motivi:
-
 1. Il sito non vede mai la vostra password di Google
 2. L'autorizzazione può essere limitata a specifiche risorse (scopes)
 
@@ -342,8 +340,6 @@ Per questo esiste PKCE, che vediamo tra poco. Ma prima, capiamo il flow base.
 
 ### Authorization Code Flow - Il Flusso Base
 
-**Come funziona il flusso più comune di OAuth2**
-
 ```
 1. User → Client: "Voglio fare login"
 2. Client → Auth Server: "Redirect a /authorize"
@@ -353,10 +349,6 @@ Per questo esiste PKCE, che vediamo tra poco. Ma prima, capiamo il flow base.
 6. Auth Server → Client: Access token + Refresh token
 7. Client → Resource Server: API call con access token
 ```
-
-**Discorso:**
-
-L'Authorization Code Flow è il flusso OAuth2 più usato per le web app. Vediamo passo passo cosa succede.
 
 1. L'utente clicca "Login" sulla vostra app.
 
@@ -488,11 +480,11 @@ Nella pratica, con PKCE, state, nonce, e HTTPS, il flusso OAuth è molto sicuro.
 
 ## JWT
 
+Allora, siamo quasi alla fine, prima di arrivare ad un qualcosa che ho fatto parliamo un po dei token JWT. Noi usiamo i JWT costantemente nei progetti che trattiamo, sono onnipresenti e probabilmente li conosciamo tutti molto bene, quindi percheparlarne ora? Sfortunatamente anche qua serve essere consapevoli che usare una libreria per la verifica del JWT non basta. Serve essere consci di ogni passaggio: abbiamo verificato la firma, perfetto, ma abbastanza scontato quello? Ma abbiamo verificato anche l'algoritmo usato? E il tempo di scadenza? E l'audience?
+
 ### JWT - Anatomia di un Token
 
-**JSON Web Token: il formato che ha conquistato il mondo**
-
-**Struttura:**
+Un JWT ha tre parti separate da punti:
 
 ```
 header.payload.signature
@@ -508,6 +500,12 @@ header.payload.signature
 }
 ```
 
+Metadati sul token:
+
+- `alg`: algoritmo usato per firmarlo
+- `typ`: tipo di token
+- `kid`: key ID che identifica la chiave specifica usata (utile per key rotation)
+
 **Payload:**
 
 ```json
@@ -521,49 +519,23 @@ header.payload.signature
 }
 ```
 
-**Signature:**
+I dati veri, chiamati "claims":
 
-```
-HMACSHA256(
-  base64UrlEncode(header) + "." + base64UrlEncode(payload),
-  secret
-)
-```
+- `sub` (subject): ID dell'utente
+- `iat` (issued at): timestamp creazione
+- `exp` (expiration): timestamp scadenza
+- `iss` (issuer): chi l'ha emesso
+- `aud` (audience): per chi è destinato
 
-**Discorso:**
+Puoi aggiungere claims custom: `email`, `role`, `groups`, etc.
 
-JWT è diventato lo standard de facto per i token di autenticazione. Ma è anche una delle cose più fraintese e implementate male.
+**Signature:** firma crittografica che prova che il token non è stato modificato.
 
-Un JWT ha tre parti separate da punti:
+Ogni parte è Base64URL-encoded, non encrypted. Quindi chiunque potrebbe decodificare un JWT e leggere il contenuto. La firma verifica solo l'integrità, non la confidenzialità. Quindi sarebbe sbagliato mettere dei dati sensibili in un token. È come una busta trasparente con un sigillo.
 
-1. **Header**: metadati sul token. L'algoritmo usato per firmarlo (`alg`), il tipo (`typ`), e opzionalmente un key ID (`kid`) se usi key rotation.
+Per corrompere un token serve rifare la firma e farla combaciare con la chiave privata. Alquanto improbabile con le tecniche crittografiche attuali. Come per blockchain, si dice che per romperlo servono miliardi di anni perché non esiste un algoritmo in tempo polinomiale. Tutto sta nel fattorizzare un numero grande in due numeri primi. Non c'è un algoritmo efficiente per farlo. Non vi sto ad annoiare con le formule ed algoritmo di Shor. Vi faccio vedere una cosa carina magar che mi sono ricordato ora. i matematici cercano pattern tra i numeri primi senza riuscirci (vedi spirale di Ulam).
 
-2. **Payload**: i dati veri, chiamati "claims". Ci sono claims standard come:
-   - `sub` (subject): l'ID dell'utente
-   - `iat` (issued at): quando è stato creato
-   - `exp` (expiration): quando scade
-   - `iss` (issuer): chi l'ha emesso
-   - `aud` (audience): per chi è destinato
-
-   E puoi aggiungere claims custom come `email`, `role`, `groups`, etc.
-
-3. **Signature**: la firma crittografica che prova che il token non è stato modificato.
-
-Ogni parte è Base64URL-encoded (non encrypted!). Chiunque può decodificare un JWT e leggere il contenuto. La firma serve solo a verificare l'integrità, non la confidenzialità.
-
-Questo è importante: **non mettete dati sensibili in un JWT** a meno che non lo crittografiate separatamente (JWE). Il JWT è come una busta trasparente con un sigillo. Tutti vedono cosa c'è dentro, ma il sigillo garantisce che nessuno l'ha modificato.
-
-Gli algoritmi di firma più comuni sono:
-
-- **HS256**: HMAC con SHA-256. Simmetrico, usa una secret key condivisa.
-- **RS256**: RSA con SHA-256. Asimmetrico, usa chiave privata per firmare e pubblica per verificare.
-- **ES256**: ECDSA con SHA-256. Asimmetrico, più efficiente di RSA.
-
-Per sistemi distribuiti, RS256 o ES256 sono preferibili perché puoi distribuire la chiave pubblica per la verifica senza esporre la chiave privata.
-
-### JWT Vulnerabilities - Quando I Token Si Rompono
-
-**Le vulnerabilità JWT più comuni e pericolose**
+### JWT Vulnerabilitiec
 
 **1. alg: "none" Attack**
 
@@ -574,51 +546,15 @@ Per sistemi distribuiti, RS256 o ES256 sono preferibili perché puoi distribuire
 }
 ```
 
-Token senza firma. Se il server non valida l'algoritmo, accetta qualsiasi cosa.
+Questo mi fa sempre ridere, ma l'ho visto. Token senza firma. Se il server non valida l'algoritmo, accetta qualsiasi cosa.
 
-**2. Algorithm Confusion**
+Il JWT spec permette algoritmo "none" per token non firmati (testing). Alcune librerie, se mal configurate, li accettano.
 
-```
-Token firmato con HS256 usando la chiave pubblica RSA come secret
-```
+Attaccante: prende un JWT valido, cambia l'header in `{"alg": "none"}`, rimuove la firma, modifica il payload (`"role": "admin"`), e lo invia. Se il server non valida esplicitamente l'algoritmo, lo accetta.
 
-Confondere algoritmi simmetrici e asimmetrici.
+CVE-2015-9235 ha colpito la libreria jsonwebtoken di Node.js per questo.
 
-**3. Weak Secrets**
-
-```
-secret: "secret123"
-```
-
-Brute-force in minuti.
-
-**4. Missing Claim Validation**
-
-```
-Non verificare exp, iss, aud, sub
-```
-
-Token scaduti, per altre app, o modificati vengono accettati.
-
-**5. Token in localStorage**
-
-```javascript
-localStorage.setItem("token", jwt);
-```
-
-Vulnerabile a XSS.
-
-**Discorso:**
-
-Ora viene la parte interessante: come si rompono i JWT. Ho letto gli articoli che mi hai passato e ci sono pattern ricorrenti di vulnerabilità.
-
-**1. L'attacco alg: "none"**
-
-Questo è il più assurdo ma anche il più comune. Il JWT spec permette un algoritmo "none" per token non firmati (per testing). Alcune librerie, se non configurate correttamente, accettano questi token.
-
-Un attaccante prende un JWT valido, cambia l'header in `{"alg": "none"}`, rimuove la firma, modifica il payload come vuole (tipo `"role": "admin"`), e lo invia. Se il server non valida esplicitamente l'algoritmo, lo accetta.
-
-CVE-2015-9235 ha colpito la libreria jsonwebtoken di Node.js proprio per questo. La fix? Specificare sempre esplicitamente quali algoritmi accetti:
+Definire sempre una whitelist di algoritmi. In genere è uno solo e si dovrebbe accettare solo quello:
 
 ```javascript
 jwt.verify(token, secret, { algorithms: ["RS256"] });
@@ -628,44 +564,60 @@ Mai fidarsi dell'algoritmo dichiarato nel token.
 
 **2. Algorithm Confusion**
 
-Questo è più sottile. Immagina un sistema che usa RS256 (asimmetrico). Il server ha la chiave pubblica per verificare i token.
+Sistema che usa RS256 (asimmetrico). Il server ha la chiave pubblica per verificare i token.
 
-Un attaccante cambia l'algoritmo in HS256 (simmetrico) e firma il token usando la chiave pubblica come secret HMAC. Se il server non valida l'algoritmo e usa la stessa chiave per verificare, il token viene accettato.
+Attaccante cambia l'algoritmo in HS256 (simmetrico) e firma il token usando la chiave pubblica come secret HMAC. Se il server non valida l'algoritmo e usa la stessa chiave per verificare, il token viene accettato.
 
-Perché funziona? Perché HS256 usa la stessa chiave per firmare e verificare, mentre RS256 usa chiavi diverse. Se il server usa la chiave pubblica (che l'attaccante conosce) per verificare un token HS256, l'attaccante può creare token validi.
+Funziona perché HS256 usa la stessa chiave per firmare e verificare, mentre RS256 usa chiavi diverse. Se il server usa la chiave pubblica (che l'attaccante conosce) per verificare un token HS256, l'attaccante può creare token validi.
 
 **3. Weak Secrets**
 
-Se usi HS256 con un secret debole tipo "secret", "password", o il nome della tua azienda, un attaccante può fare brute-force offline. Prende un JWT valido, prova migliaia di secret comuni, e quando trova quello giusto può creare token validi.
+```
+secret: "secret123"
+```
 
-Ho visto secret come "jwt-secret-key" in produzione. Ci sono wordlist pubbliche con i secret JWT più comuni. Usate secret random di almeno 256 bit.
+Brute-force in minuti.
+
+Se usi HS256 con un secret debole ("secret", "password", nome azienda), un attaccante può fare brute-force offline. Prende un JWT valido, prova migliaia di secret comuni, e quando trova quello giusto può creare token validi.
+
+Usando il cloud è tutto autogestito e generato, ma serve sapere che sotto un certo numero di simboli non si dovrebbe scendere. Altrimenti qualche oretta con un tool e la chiave è rotta.
 
 **4. Missing Claim Validation**
 
+```
+Non verificare exp, iss, aud, sub
+```
+
+Token scaduti, per altre app, o modificati vengono accettati.
+
 Anche se la firma è valida, devi validare i claims:
 
-- `exp`: il token è scaduto? Se non controlli, token vecchi funzionano per sempre.
-- `iss`: chi ha emesso il token? Se non controlli, token di altri sistemi potrebbero essere accettati.
-- `aud`: per chi è il token? Se non controlli, un token per app A potrebbe funzionare su app B.
-- `sub`: chi è l'utente? Se non controlli, un attaccante potrebbe sostituire token tra utenti.
+- `exp`: il token è scaduto? Se non controlli, token vecchi funzionano per sempre
+- `iss`: chi ha emesso il token? Se non controlli, token di altri sistemi potrebbero essere accettati
+- `aud`: per chi è il token? Se non controlli, un token per app A potrebbe funzionare su app B
+- `sub`: chi è l'utente? Se non controlli, un attaccante potrebbe sostituire token tra utenti
 
-Ho visto sistemi che verificavano la firma ma non l'expiration. Token di anni fa funzionavano ancora.
+**5. Token in localStorage**
 
-**5. Storage Insicuro**
+```javascript
+localStorage.setItem("token", jwt);
+```
 
-Ne abbiamo già parlato, ma lo ripeto: localStorage è accessibile a JavaScript. Un attacco XSS ruba tutto. Usate HTTP-only cookies.
+Vulnerabile a XSS.
 
-Questi non sono bug teorici. Sono vulnerabilità trovate in produzione, in app usate da milioni di persone. Auth0 ha avuto problemi con JWT validation. Uber ha avuto problemi. Non siete immuni.
+Ne abbiamo già parlato: localStorage è accessibile a JavaScript. Un attacco XSS ruba tutto.
 
-### JWT Attack Tools - Come Gli Attaccanti Operano
+### JWT Attack Tools
 
-**Gli strumenti che gli attaccanti (e i security tester) usano**
+Voglio mostrarvi gli strumenti che gli attaccanti usano, perché capire come attaccano aiuta a difendersi meglio.
 
 **jwt.io**
 
 - Decoder online
 - Vede header, payload, signature
 - Usato per analisi iniziale
+
+Punto di partenza. Sito pubblico dove incolli un JWT e vedi cosa c'è dentro. Tutti lo usano, sviluppatori e attaccanti. Comodo per debugging. Da ricordarsi il fatto che se potete vedere cosa c'è nel token, può farlo anche un attaccante.
 
 **jwt_tool**
 
@@ -680,6 +632,14 @@ python3 jwt_tool.py <token> -X a
 python3 jwt_tool.py <token> -X s
 ```
 
+Strumento professionale per testare JWT. Script Python che automatizza tutti gli attacchi comuni:
+
+- Prova attacco alg: none
+- Testa algorithm confusion
+- Fa brute-force del secret con wordlist
+- Prova a modificare claims e rigenerare la firma
+- Testa key confusion attacks
+
 **Hashcat**
 
 ```bash
@@ -687,39 +647,25 @@ python3 jwt_tool.py <token> -X s
 hashcat -a 0 -m 16500 jwt.txt wordlist.txt
 ```
 
-**Discorso:**
+Tool di password cracking più potente. Supporta JWT cracking. Se il vostro secret è debole, Hashcat lo trova. Con una GPU moderna, può provare miliardi di combinazioni al secondo.
 
-Voglio mostrarvi gli strumenti che gli attaccanti usano, perché capire come attaccano vi aiuta a difendervi meglio.
+Questi tool sono pubblici e facili da usare. Non servono competenze avanzate. Se il vostro JWT ha vulnerabilità, qualcuno le troverà. Ma non e' una notizia brutta ma buona, potete usare questi stessi tool per testare il vostro sistema prima che lo faccia un attaccante.
 
-**jwt.io** è il punto di partenza. È un sito pubblico dove incolli un JWT e vedi cosa c'è dentro. Tutti lo usano, sviluppatori e attaccanti. È comodo per debugging, ma ricordatevi: se potete vedere cosa c'è nel token, può farlo anche un attaccante.
-
-**jwt_tool** è lo strumento professionale per testare JWT. È uno script Python che automatizza tutti gli attacchi comuni:
-
-- Prova l'attacco alg: none
-- Testa algorithm confusion
-- Fa brute-force del secret con wordlist
-- Prova a modificare claims e rigenerare la firma
-- Testa key confusion attacks
-
-L'ho usato in security assessment e trova vulnerabilità in minuti. Se il vostro sistema è vulnerabile a uno di questi attacchi, jwt_tool lo scopre.
-
-**Hashcat** è il tool di password cracking più potente. Supporta JWT cracking (mode 16500). Se il vostro secret è debole, Hashcat lo trova. Con una GPU moderna, può provare miliardi di combinazioni al secondo.
-
-Il punto è: questi tool sono pubblici e facili da usare. Non servono competenze avanzate. Se il vostro JWT ha vulnerabilità, qualcuno le troverà.
-
-La buona notizia? Potete usare questi stessi tool per testare il vostro sistema prima che lo faccia un attaccante.
-
-### JWT Best Practices - Come Fare Le Cose Bene
-
-**Checklist per JWT sicuri**
+### JWT Best Practices
 
 **Algoritmo esplicito**
+
+Mai fidarsi dell'algoritmo dichiarato nel token. Specificate sempre esplicitamente quali algoritmi accettate. Se usate RS256, accettate solo RS256.
 
 ```javascript
 jwt.verify(token, secret, { algorithms: ["RS256"] });
 ```
 
 **Secret forte (o meglio, asimmetrico)**
+
+Se usate HS256, il secret deve essere cryptographically random e lungo almeno 256 bit. Non "password123", non il nome della vostra app, non qualcosa in una wordlist.
+
+Meglio ancora: usate algoritmi asimmetrici come RS256 o ES256. Con questi, la chiave privata sta solo sull'authorization server. I resource server hanno solo la chiave pubblica. Anche se un resource server viene compromesso, l'attaccante non può creare token validi.
 
 ```javascript
 // NO
@@ -743,12 +689,27 @@ jwt.verify(token, publicKey, {
 });
 ```
 
+Verificare la firma non basta. Ogni claim ha un significato e serve validarli tutti:
+
+- `exp`: il token è scaduto?
+- `nbf`: il token è già valido?
+- `iat`: quando è stato emesso?
+- `iss`: chi l'ha emesso?
+- `aud`: per chi è destinato?
+- `sub`: chi è l'utente?
+
 **Token short-lived**
 
 ```javascript
 // Access token: 15 minuti - 1 ora
 // Refresh token: giorni/settimane, ma con rotazione
 ```
+
+Gli access token devono essere short-lived. 15 minuti è un buon compromesso. 1 ora è il massimo. Più lunghi sono, più tempo ha un attaccante se li ruba.
+
+"Ma allora l'utente deve fare login ogni 15 minuti?" No, per questo ci sono i refresh token. L'access token scade velocemente, ma il refresh token dura più a lungo e può essere usato per ottenere nuovi access token.
+
+I refresh token devono essere rotated: ogni volta che li usi, ne ottieni uno nuovo e il vecchio viene invalidato. Questo limita il danno se vengono rubati.
 
 **Storage sicuro**
 
@@ -762,6 +723,8 @@ res.cookie("access_token", token, {
 });
 ```
 
+HTTP-only, Secure, SameSite cookies. Non localStorage, non sessionStorage, non cookie normali. HTTP-only cookies.
+
 **JWKS per key rotation**
 
 ```javascript
@@ -769,190 +732,29 @@ res.cookie("access_token", token, {
 // Usa kid (key ID) nell'header per identificare la chiave
 ```
 
-**Discorso:**
-
-Ok, basta con gli attacchi. Come si fa bene?
-
-**1. Algoritmo esplicito**
-
-Mai, mai, mai fidarsi dell'algoritmo dichiarato nel token. Specificate sempre esplicitamente quali algoritmi accettate. Se usate RS256, accettate solo RS256. Non "qualsiasi algoritmo che il token dice di usare".
-
-**2. Secret forte o asimmetrico**
-
-Se usate HS256, il secret deve essere cryptographically random e lungo almeno 256 bit. Non "password123", non il nome della vostra app, non qualcosa che potrebbe essere in una wordlist.
-
-Ma meglio ancora: usate algoritmi asimmetrici come RS256 o ES256. Con questi, la chiave privata sta solo sull'authorization server. I resource server hanno solo la chiave pubblica. Anche se un resource server viene compromesso, l'attaccante non può creare token validi.
-
-**3. Validazione completa**
-
-Verificare la firma non basta. Dovete validare:
-
-- `exp`: il token è scaduto?
-- `nbf`: il token è già valido?
-- `iat`: quando è stato emesso?
-- `iss`: chi l'ha emesso?
-- `aud`: per chi è destinato?
-- `sub`: chi è l'utente?
-
-Ogni claim ha un significato e una ragione di esistere. Validateli tutti.
-
-**4. Token short-lived**
-
-Gli access token devono essere short-lived. 15 minuti è un buon compromesso. 1 ora è il massimo che consiglierei. Più lunghi sono, più tempo ha un attaccante se li ruba.
-
-"Ma allora l'utente deve fare login ogni 15 minuti?" No, per questo ci sono i refresh token. L'access token scade velocemente, ma il refresh token dura più a lungo e può essere usato per ottenere nuovi access token.
-
-E i refresh token devono essere rotated: ogni volta che li usi, ne ottieni uno nuovo e il vecchio viene invalidato. Questo limita il danno se vengono rubati.
-
-**5. Storage sicuro**
-
-HTTP-only, Secure, SameSite cookies. L'abbiamo detto mille volte ma lo ripeto perché è fondamentale. Non localStorage, non sessionStorage, non cookie normali. HTTP-only cookies.
-
-**6. JWKS e key rotation**
-
 Per sistemi in produzione, implementate key rotation. Pubblicate le vostre chiavi pubbliche su un endpoint JWKS (JSON Web Key Set), tipo `/.well-known/jwks.json`. Usate il campo `kid` (key ID) nell'header del JWT per identificare quale chiave è stata usata.
 
-Questo vi permette di:
+Questo permette di:
 
 - Ruotare le chiavi senza downtime
 - Revocare chiavi compromesse
 - Avere chiavi diverse per ambienti diversi
 
-Key rotation è una di quelle cose che sembrano complicate ma sono essenziali per la sicurezza a lungo termine.
-
-### ID Token vs Access Token - Quale Usare?
-
-**Due token, due scopi diversi**
-
-**ID Token (OpenID Connect):**
-
-- Formato: JWT
-- Scopo: Identificare l'utente
-- Audience: La tua applicazione (client)
-- Contiene: sub, email, name, etc.
-- Dove usarlo: Solo per sapere chi è l'utente
-- Validazione: Firma, iss, aud, exp, nonce
-
-**Access Token (OAuth2):**
-
-- Formato: JWT o opaque
-- Scopo: Autorizzare accesso alle risorse
-- Audience: Il resource server (API)
-- Contiene: scope, permissions
-- Dove usarlo: Nelle chiamate API
-- Validazione: Firma, iss, aud, exp, scope
-
-**Errore comune:**
-
-```javascript
-//  SBAGLIATO
-fetch("/api/users", {
-  headers: { Authorization: `Bearer ${idToken}` },
-});
-
-//  CORRETTO
-fetch("/api/users", {
-  headers: { Authorization: `Bearer ${accessToken}` },
-});
-```
-
-**Discorso:**
-
-Questa è una confusione che vedo costantemente: usare l'ID token per chiamare le API.
-
-Quando fate OAuth + OpenID Connect, ricevete due token:
-
-**ID Token**: è un JWT che contiene informazioni sull'utente. Chi è, la sua email, il suo nome, etc. È destinato alla vostra applicazione (il client). Lo usate per sapere chi si è loggato. Punto. Non lo mandate alle API.
-
-**Access Token**: è il token che autorizza l'accesso alle risorse. Può essere un JWT o un token opaco (una stringa random). È destinato al resource server (la vostra API). Lo mandate con ogni richiesta API nell'header Authorization.
-
-Perché questa distinzione?
-
-1. **Audience diversa**: L'ID token ha `aud` = il vostro client ID. L'access token ha `aud` = l'API. Se mandate l'ID token all'API, l'audience non corrisponde e dovrebbe essere rifiutato.
-
-2. **Scopo diverso**: L'ID token dice "chi sei". L'access token dice "cosa puoi fare". Sono informazioni diverse.
-
-3. **Lifetime diverso**: L'ID token può durare più a lungo perché non viene usato per accedere a risorse. L'access token deve essere short-lived.
-
-4. **Claims diversi**: L'ID token ha claims sull'identità (email, name). L'access token ha claims sui permessi (scope, roles).
-
-Nella pratica, molti sistemi usano JWT per entrambi e li fanno sembrare simili. Ma concettualmente sono diversi e vanno usati per scopi diversi.
-
-Nel BFF che ho costruito, l'ID token viene usato solo per estrarre informazioni sull'utente (sub, email) che poi vengono passate al backend come header. L'access token viene usato se il backend deve chiamare altre API protette.
-
-### Token Refresh - Gestire La Scadenza
-
-**Come mantenere l'utente loggato senza compromettere la sicurezza**
-
-**Il problema:**
-
-- Access token short-lived (15 min)
-- Utente non vuole fare login ogni 15 minuti
-- Soluzione: Refresh token
-
-**Il flusso:**
-
-```
-1. Login → Access token (15 min) + Refresh token (7 giorni)
-2. Usa access token per API calls
-3. Access token scade
-4. Usa refresh token per ottenere nuovo access token
-5. Nuovo access token + nuovo refresh token (rotation)
-6. Vecchio refresh token invalidato
-```
-
-**Refresh token rotation:**
-
-```javascript
-// Ogni refresh genera un nuovo refresh token
-POST /oauth2/token
-{
-  "grant_type": "refresh_token",
-  "refresh_token": "old_refresh_token"
-}
-
-Response:
-{
-  "access_token": "new_access_token",
-  "refresh_token": "new_refresh_token"  // ← Nuovo!
-}
-
-// Il vecchio refresh token è ora invalido
-```
-
-**Discorso:**
-
-Access token short-lived sono sicuri ma creano un problema UX: l'utente dovrebbe fare login ogni 15 minuti. Inaccettabile.
-
-La soluzione è il refresh token. È un token long-lived (giorni o settimane) che può essere usato per ottenere nuovi access token senza richiedere login.
-
-Il flusso è:
-
-1. Al login, ricevi access token (scade tra 15 min) e refresh token (scade tra 7 giorni).
-
-2. Usi l'access token per le chiamate API normali.
-
-3. Quando l'access token sta per scadere (o è già scaduto), usi il refresh token per ottenerne uno nuovo.
-
-4. L'authorization server ti dà un nuovo access token (e un nuovo refresh token).
-
-5. Il vecchio refresh token viene invalidato.
-
-Questo ultimo punto è cruciale: **refresh token rotation**. Ogni volta che usi un refresh token, ne ottieni uno nuovo e il vecchio smette di funzionare.
-
-Perché è importante? Perché limita il danno se un refresh token viene rubato:
-
-- Se l'attaccante usa il refresh token rubato, ottiene un nuovo token ma invalida quello della vittima.
-- La vittima prova a usare il suo refresh token (ora invalido) e il sistema rileva l'anomalia.
-- Il sistema può revocare tutti i token di quella sessione.
-
-Questo è chiamato "refresh token reuse detection". Se un refresh token viene usato due volte, è un segnale di compromissione.
-
-Nel BFF, implemento questo pattern. I refresh token sono in HTTP-only cookies, vengono rotated ad ogni uso, e se rilevo riuso, revoco tutto.
+Key rotation sembra complicata ma è essenziale per la sicurezza a lungo termine.
 
 ## BFF
 
 ### Il Problema delle SPA - Perché Serve un BFF
+
+Ricapitoliamo. Abbiamo parlato di:
+
+- Vulnerabilità e posto dove mettere i token
+- Flusso OAuth
+- JWT
+
+Abbiamo detto che il posto sicuro sono i cookie. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica.
+
+A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta che lo possiamo fare. Siamo sicuri che vogliamo avere una minima parte di questa gestione a FE? È responsabilità del frontend gestire l'autenticazione? Per come la vedo io no. Il FE in funzione dei dati che ha deve capire se redirigere l'utente verso login, signup, o nascondere parti dell'applicativo, ma non gestire il flusso.
 
 **Single Page Applications e OAuth2: un matrimonio difficile**
 
@@ -983,11 +785,7 @@ Nel BFF, implemento questo pattern. I refresh token sono in HTTP-only cookies, v
 
 **La soluzione: Backend for Frontend (BFF)**
 
-**Discorso:**
-
-Arriviamo al cuore del problema che mi ha spinto a costruire il BFF.
-
-Le Single Page Applications sono fantastiche per UX. React, Vue, Angular... permettono di costruire interfacce fluide e reattive. Ma hanno un problema fondamentale con la sicurezza: non c'è un posto sicuro dove mettere i segreti.
+Le Single Page Applications sono fantastiche per UX. React, Vue, Angular permettono di costruire interfacce fluide e reattive. Ma hanno un problema fondamentale con la sicurezza: non c'è un posto sicuro dove mettere i segreti.
 
 Tutto il codice JavaScript gira nel browser. Chiunque può aprire DevTools e vedere tutto. Questo crea problemi:
 
@@ -1634,8 +1432,6 @@ Il frontend in tutto questo? Fa solo `fetch('/api/users')`. Non sa niente di tok
 È bello nella sua semplicità a parer mio.
 
 ## Conclusioni
-
-### Cosa Ho Imparato
 
 Costruendo questo BFF, ho imparato diverse lezioni.
 
