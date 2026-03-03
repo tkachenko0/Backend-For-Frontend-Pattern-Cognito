@@ -20,7 +20,7 @@ Fatta questa premessa, oggi quindi vedremo:
 
 ## Core
 
-### Cross-Site Scripting (XSS) Quando il tuo sito esegue codice di qualcun altro
+### Cross-Site Scripting
 
 Partiamo dalle cose piu banali: Cross-Site Scripting. È uno degli attacchi più preistorici del web.
 
@@ -83,7 +83,7 @@ Perche uno sviluppatore potrebbe essere atratto dal usare dangerouslySetInnerHTM
 **Conclusione:**
 I danni che puo fare l'XSS sono tanti, io mi concentrero concentrero soprattto sul tema della autenticazione. Come facciamo a prevenire attacchi XSS su quella? La difesa principale sarebbe non memorizzare dati sensibili in posti accessibili a JavaScript. In questa maniera se un attaccante prova ad accederci banalmente non puo leggere nulla. Prima di passare al come, vediamo un'altro attacco prima.
 
-### Cross-Site Request Forgery (CSRF) Quando il tuo browser lavora contro di te
+### Cross-Site Request Forgery
 
 CSRF è altrettanto preistorico come XSS, ma un po più subdolo. Non richiede di iniettare codice nel'app. L'attaccante crea una pagina malevola su un altro dominio e sfrutta il fatto che il browser invia automaticamente i cookie con ogni richiesta.
 
@@ -312,7 +312,7 @@ Ogni attributo è un layer di difesa. Insieme creano un cookie che resiste a XSS
 
 ## OAuth
 
-### OAuth 2.0 - Il Protocollo Che Regge Il Web
+### OAuth 2.0
 
 **OAuth 2.0: delegare l'accesso senza condividere password**
 
@@ -322,8 +322,6 @@ Ogni attributo è un layer di difesa. Insieme creano un cookie che resiste a XSS
 - **Client**: L'applicazione che vuole accedere
 - **Authorization Server**: Chi gestisce l'autenticazione (Google, Microsoft, Cognito)
 - **Resource Server**: L'API con i dati protetti
-
-**Discorso:**
 
 OAuth2 è il protocollo che permette a un'app di accedere alle tue risorse senza mai vedere la tua password.
 
@@ -338,7 +336,7 @@ Ma prima, una cosa importante: OAuth2 da solo non è sicuro per applicazioni pub
 
 Per questo esiste PKCE, che vediamo tra poco. Ma prima, capiamo il flow base.
 
-### Authorization Code Flow - Il Flusso Base
+### Authorization Code Flow
 
 ```
 1. User → Client: "Voglio fare login"
@@ -379,7 +377,7 @@ Il punto chiave qui è che il client secret non viene mai esposto al browser. So
 
 Ma cosa succede con le Single Page Applications che non hanno un backend? O con le app mobile? Lì non puoi tenere segreto il client secret. Ed è qui che entra PKCE.
 
-### PKCE - Proof Key for Code Exchange
+### Proof Key for Code Exchange
 
 **Come rendere OAuth2 sicuro senza client secret**
 
@@ -400,8 +398,6 @@ Ma cosa succede con le Single Page Applications che non hanno un backend? O con 
 6. Client invia code + code_verifier per ottenere token
 7. Auth Server verifica: SHA256(code_verifier) === code_challenge
 ```
-
-**Discorso:**
 
 PKCE (si pronuncia "pixie") è un'estensione di OAuth2 che risolve un problema fondamentale: come fare OAuth in modo sicuro quando non puoi tenere segreto il client secret.
 
@@ -427,7 +423,7 @@ Il code_verifier non viene mai trasmesso fino al momento dello scambio finale, e
 
 PKCE è ora raccomandato per tutti i client OAuth2, non solo quelli pubblici. È un layer di sicurezza aggiuntivo che non costa nulla implementare.
 
-### State e Nonce - I Guardiani del Flusso
+### State e Nonce
 
 **Due parametri piccoli ma fondamentali**
 
@@ -446,8 +442,6 @@ PKCE è ora raccomandato per tutti i client OAuth2, non solo quelli pubblici. È
 - Incluso nell'ID token come claim
 - Client verifica: nonce nel token === nonce generato
 - **Previene:** Replay attacks dell'ID token
-
-**Discorso:**
 
 State e nonce sono due parametri che sembrano fare cose simili ma proteggono da attacchi diversi.
 
@@ -480,15 +474,13 @@ Nella pratica, con PKCE, state, nonce, e HTTPS, il flusso OAuth è molto sicuro.
 
 ## JWT
 
-Allora, siamo quasi alla fine, prima di arrivare ad un qualcosa che ho fatto parliamo un po dei token JWT. Noi usiamo i JWT costantemente nei progetti che trattiamo, sono onnipresenti e probabilmente li conosciamo tutti molto bene, quindi percheparlarne ora? Sfortunatamente anche qua serve essere consapevoli che usare una libreria per la verifica del JWT non basta. Serve essere consci di ogni passaggio: abbiamo verificato la firma, perfetto, ma abbastanza scontato quello? Ma abbiamo verificato anche l'algoritmo usato? E il tempo di scadenza? E l'audience?
+Allora, siamo quasi alla fine, prima di arrivare al pattern BFF, parliamo un po dei token JWT. Noi usiamo i JWT costantemente nei progetti che trattiamo, sono onnipresenti e probabilmente li conosciamo tutti molto bene, quindi perche parlarne ora? Sfortunatamente anche qua serve essere consapevoli che usare una libreria per la verifica del JWT non basta. Serve essere consci di certi passaggii: abbiamo verificato la firma, perfetto, abbastanza scontato quello. Ma abbiamo verificato anche l'algoritmo usato, il tempo di scadenza, e l'audience?
 
-### JWT - Anatomia di un Token
+### JWT Anatomia di un Token
 
 Un JWT ha tre parti separate da punti:
 
-```
 header.payload.signature
-```
 
 **Header:**
 
@@ -527,15 +519,15 @@ I dati veri, chiamati "claims":
 - `iss` (issuer): chi l'ha emesso
 - `aud` (audience): per chi è destinato
 
-Puoi aggiungere claims custom: `email`, `role`, `groups`, etc.
+Possiamo anche aggiungere dei claims custom: `email`, `role`, `groups`, etc.
 
 **Signature:** firma crittografica che prova che il token non è stato modificato.
 
-Ogni parte è Base64URL-encoded, non encrypted. Quindi chiunque potrebbe decodificare un JWT e leggere il contenuto. La firma verifica solo l'integrità, non la confidenzialità. Quindi sarebbe sbagliato mettere dei dati sensibili in un token. È come una busta trasparente con un sigillo.
+Ogni parte è Base64URL-encoded, non encrypted. Quindi chiunque potrebbe decodificare un JWT e leggere il contenuto. La firma garantisce solo l'integrità, non la confidenzialità. Quindi sarebbe sbagliato mettere dei dati sensibili in un token.
 
-Per corrompere un token serve rifare la firma e farla combaciare con la chiave privata. Alquanto improbabile con le tecniche crittografiche attuali. Come per blockchain, si dice che per romperlo servono miliardi di anni perché non esiste un algoritmo in tempo polinomiale. Tutto sta nel fattorizzare un numero grande in due numeri primi. Non c'è un algoritmo efficiente per farlo. Non vi sto ad annoiare con le formule ed algoritmo di Shor. Vi faccio vedere una cosa carina magar che mi sono ricordato ora. i matematici cercano pattern tra i numeri primi senza riuscirci (vedi spirale di Ulam).
+Per corrompere un token serve rifare la firma e farla combaciare con la chiave privata. Alquanto improbabile con le tecniche crittografiche attuali. Come per blockchain, si dice che per romperlo servono miliardi di anni perché non esiste un algoritmo in tempo polinomiale. Tutto sta nel fattorizzare un numero grande in due numeri primi. Non c'è un algoritmo efficiente per farlo. Non vi sto ad annoiare con le formule ed algoritmo di Shor. Vi faccio vedere una cosa carina magari che mi sono ricordato ora: i matematici cercano pattern tra i numeri primi senza riuscirci (vedi spirale di Ulam).
 
-### JWT Vulnerabilitiec
+### JWT Vulnerabilities
 
 **1. alg: "none" Attack**
 
@@ -548,27 +540,26 @@ Per corrompere un token serve rifare la firma e farla combaciare con la chiave p
 
 Questo mi fa sempre ridere, ma l'ho visto. Token senza firma. Se il server non valida l'algoritmo, accetta qualsiasi cosa.
 
-Il JWT spec permette algoritmo "none" per token non firmati (testing). Alcune librerie, se mal configurate, li accettano.
+Il JWT spec permette algoritmo "none" per token non firmati. Alcune librerie li accettano.
 
 Attaccante: prende un JWT valido, cambia l'header in `{"alg": "none"}`, rimuove la firma, modifica il payload (`"role": "admin"`), e lo invia. Se il server non valida esplicitamente l'algoritmo, lo accetta.
 
-CVE-2015-9235 ha colpito la libreria jsonwebtoken di Node.js per questo.
+CVE-2015-9235 ha colpito la libreria jsonwebtoken di Node.js con questa tecnica.
 
-Definire sempre una whitelist di algoritmi. In genere è uno solo e si dovrebbe accettare solo quello:
+Serve definire sempre una whitelist di algoritmi. In genere è uno solo e si dovrebbe accettare solo quello:
 
 ```javascript
 jwt.verify(token, secret, { algorithms: ["RS256"] });
 ```
 
-Mai fidarsi dell'algoritmo dichiarato nel token.
-
+Verificare l'algoritmo serve anche per unaltra tipologia di attacchi come il prossimo:
 **2. Algorithm Confusion**
 
 Sistema che usa RS256 (asimmetrico). Il server ha la chiave pubblica per verificare i token.
 
 Attaccante cambia l'algoritmo in HS256 (simmetrico) e firma il token usando la chiave pubblica come secret HMAC. Se il server non valida l'algoritmo e usa la stessa chiave per verificare, il token viene accettato.
 
-Funziona perché HS256 usa la stessa chiave per firmare e verificare, mentre RS256 usa chiavi diverse. Se il server usa la chiave pubblica (che l'attaccante conosce) per verificare un token HS256, l'attaccante può creare token validi.
+Funziona perché HS256 usa la stessa chiave per firmare e verificare, mentre RS256 usa chiavi diverse. Se il server usa la chiave pubblica per verificare un token HS256, l'attaccante può creare token validi.
 
 **3. Weak Secrets**
 
@@ -576,19 +567,13 @@ Funziona perché HS256 usa la stessa chiave per firmare e verificare, mentre RS2
 secret: "secret123"
 ```
 
-Brute-force in minuti.
-
-Se usi HS256 con un secret debole ("secret", "password", nome azienda), un attaccante può fare brute-force offline. Prende un JWT valido, prova migliaia di secret comuni, e quando trova quello giusto può creare token validi.
+Se si usa un secret debole, un attaccante può fare brute-force prendendo un JWT valido, prova migliaia di secret comuni, e quando trova quello giusto può creare token validi.
 
 Usando il cloud è tutto autogestito e generato, ma serve sapere che sotto un certo numero di simboli non si dovrebbe scendere. Altrimenti qualche oretta con un tool e la chiave è rotta.
 
 **4. Missing Claim Validation**
 
-```
-Non verificare exp, iss, aud, sub
-```
-
-Token scaduti, per altre app, o modificati vengono accettati.
+Poi ce ne sono tanti altri che secondo me si possono ragruppare in uno solo: missing claim validation. Token scaduti, per altre app, o modificati vengono accettati.
 
 Anche se la firma è valida, devi validare i claims:
 
@@ -596,16 +581,6 @@ Anche se la firma è valida, devi validare i claims:
 - `iss`: chi ha emesso il token? Se non controlli, token di altri sistemi potrebbero essere accettati
 - `aud`: per chi è il token? Se non controlli, un token per app A potrebbe funzionare su app B
 - `sub`: chi è l'utente? Se non controlli, un attaccante potrebbe sostituire token tra utenti
-
-**5. Token in localStorage**
-
-```javascript
-localStorage.setItem("token", jwt);
-```
-
-Vulnerabile a XSS.
-
-Ne abbiamo già parlato: localStorage è accessibile a JavaScript. Un attacco XSS ruba tutto.
 
 ### JWT Attack Tools
 
@@ -657,37 +632,11 @@ Questi tool sono pubblici e facili da usare. Non servono competenze avanzate. Se
 
 Mai fidarsi dell'algoritmo dichiarato nel token. Specificate sempre esplicitamente quali algoritmi accettate. Se usate RS256, accettate solo RS256.
 
-```javascript
-jwt.verify(token, secret, { algorithms: ["RS256"] });
-```
-
 **Secret forte (o meglio, asimmetrico)**
 
-Se usate HS256, il secret deve essere cryptographically random e lungo almeno 256 bit. Non "password123", non il nome della vostra app, non qualcosa in una wordlist.
+Il secret deve essere cryptographically random e lungo almeno 256 bit. Meglio ancora sarebbe usare algoritmi asimmetrici come quelli RSA da almeno 256. Con questi, la chiave privata sta solo sull'authorization server. I resource server hanno solo la chiave pubblica ed anche se uno solo viene compromesso, l'attaccante non può creare token validi.
 
-Meglio ancora: usate algoritmi asimmetrici come RS256 o ES256. Con questi, la chiave privata sta solo sull'authorization server. I resource server hanno solo la chiave pubblica. Anche se un resource server viene compromesso, l'attaccante non può creare token validi.
-
-```javascript
-// NO
-const secret = "mysecret";
-
-// SÌ
-const secret = crypto.randomBytes(32).toString("hex");
-
-// MEGLIO
-// Usa RS256 con chiavi RSA
-```
-
-**Validazione completa dei claims**
-
-```javascript
-jwt.verify(token, publicKey, {
-  algorithms: ["RS256"],
-  issuer: "https://auth.example.com",
-  audience: "my-app",
-  maxAge: "1h",
-});
-```
+**Validazione claims**
 
 Verificare la firma non basta. Ogni claim ha un significato e serve validarli tutti:
 
@@ -698,53 +647,15 @@ Verificare la firma non basta. Ogni claim ha un significato e serve validarli tu
 - `aud`: per chi è destinato?
 - `sub`: chi è l'utente?
 
-**Token short-lived**
-
-```javascript
-// Access token: 15 minuti - 1 ora
-// Refresh token: giorni/settimane, ma con rotazione
-```
-
-Gli access token devono essere short-lived. 15 minuti è un buon compromesso. 1 ora è il massimo. Più lunghi sono, più tempo ha un attaccante se li ruba.
-
-"Ma allora l'utente deve fare login ogni 15 minuti?" No, per questo ci sono i refresh token. L'access token scade velocemente, ma il refresh token dura più a lungo e può essere usato per ottenere nuovi access token.
-
-I refresh token devono essere rotated: ogni volta che li usi, ne ottieni uno nuovo e il vecchio viene invalidato. Questo limita il danno se vengono rubati.
-
 **Storage sicuro**
-
-```javascript
-// HTTP-only, Secure, SameSite cookies
-res.cookie("access_token", token, {
-  httpOnly: true,
-  secure: true,
-  sameSite: "strict",
-  maxAge: 3600000,
-});
-```
 
 HTTP-only, Secure, SameSite cookies. Non localStorage, non sessionStorage, non cookie normali. HTTP-only cookies.
 
-**JWKS per key rotation**
-
-```javascript
-// Pubblica chiavi pubbliche su /.well-known/jwks.json
-// Usa kid (key ID) nell'header per identificare la chiave
-```
-
-Per sistemi in produzione, implementate key rotation. Pubblicate le vostre chiavi pubbliche su un endpoint JWKS (JSON Web Key Set), tipo `/.well-known/jwks.json`. Usate il campo `kid` (key ID) nell'header del JWT per identificare quale chiave è stata usata.
-
-Questo permette di:
-
-- Ruotare le chiavi senza downtime
-- Revocare chiavi compromesse
-- Avere chiavi diverse per ambienti diversi
-
-Key rotation sembra complicata ma è essenziale per la sicurezza a lungo termine.
-
 ## BFF
 
-### Il Problema delle SPA - Perché Serve un BFF
+Ok, ora siamo arrivati alla parte che mette in pratica cio che abbiamo visto prima. Come definiamo una implementazione che riespetta tutto questo? Perche questa e' la domanda che mi ero fatto io no? Sono tante cose da rispettare, e' abbastanza difficile trovare la quadra che rispetti tutti i parametri. Ma una soluzione c'e'.
+
+### Il Problema delle SPA
 
 Ricapitoliamo. Abbiamo parlato di:
 
@@ -752,68 +663,38 @@ Ricapitoliamo. Abbiamo parlato di:
 - Flusso OAuth
 - JWT
 
-Abbiamo detto che il posto sicuro sono i cookie. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica.
+Abbiamo detto che il posto sicuro sono i cookie con una certa configurazione. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica di un bel po di cose sul JWT, verifica del parametro state, delle challenge durante la fase di login.
 
 A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta che lo possiamo fare. Siamo sicuri che vogliamo avere una minima parte di questa gestione a FE? È responsabilità del frontend gestire l'autenticazione? Per come la vedo io no. Il FE in funzione dei dati che ha deve capire se redirigere l'utente verso login, signup, o nascondere parti dell'applicativo, ma non gestire il flusso.
 
-**Single Page Applications e OAuth2: un matrimonio difficile**
-
 **I problemi delle SPA:**
 
-1. **Nessun backend sicuro**
-   - Client secret non può essere segreto
+1. **Nessun posto sicuro per il client secret**
    - Tutto il codice è visibile nel browser
 
-2. **Storage insicuro**
-   - localStorage → vulnerabile a XSS
-   - Cookie normali → accessibili a JS
+1. Impossibilita di gestirlo con i coockie che sono quello il meccanismo non accessibile a JS
 
-3. **CORS complications**
-   - API su dominio diverso
-   - Preflight requests
-   - Cookie non inviati cross-domain
+1. **Storage insicuro**
 
-4. **Token refresh complesso**
-   - Gestire timing nel frontend
-   - Race conditions
-   - Stato distribuito tra tab
+- localStorage → vulnerabile a XSS
 
-5. **Nessun posto per i segreti**
-   - Client secret esposto
-   - Encryption keys esposte
-   - API keys esposte
+1. Un sacco di librerie da tirare dentro
 
-**La soluzione: Backend for Frontend (BFF)**
+1. una implementazione che e' fortemente dipendente dal provider
 
-Le Single Page Applications sono fantastiche per UX. React, Vue, Angular permettono di costruire interfacce fluide e reattive. Ma hanno un problema fondamentale con la sicurezza: non c'è un posto sicuro dove mettere i segreti.
+1. **Token refresh complesso**
 
-Tutto il codice JavaScript gira nel browser. Chiunque può aprire DevTools e vedere tutto. Questo crea problemi:
-
-**1. Client secret**
-
-OAuth2 tradizionale richiede un client secret. Ma se lo metti nel codice JavaScript, non è più segreto. Chiunque può vederlo. PKCE risolve questo, ma...
-
-**2. Storage dei token**
-
-Dove metti i token? localStorage è comodo ma vulnerabile a XSS. Cookie normali sono accessibili a JavaScript, stesso problema. HTTP-only cookies risolvono questo, ma...
-
-**3. CORS**
-
-Se la tua API è su un dominio diverso dal frontend (tipo frontend su app.com e API su api.com), i cookie non vengono inviati automaticamente per motivi di sicurezza. Devi configurare CORS, gestire preflight, e comunque i cookie con SameSite=strict non funzionano cross-domain.
-
-**4. Token refresh**
-
-Gestire il refresh degli access token nel frontend è un casino. Devi controllare costantemente se il token sta per scadere, fare la richiesta di refresh al momento giusto, gestire race conditions se hai più richieste in parallelo, sincronizzare lo stato tra tab multiple...
-
-**5. Logica di sicurezza nel frontend**
-
-Qualsiasi logica di sicurezza nel frontend è solo UX, non vera sicurezza. Un attaccante può bypassare qualsiasi controllo lato client. La vera sicurezza deve essere nel backend.
+- Gestire timing nel frontend
+- Race conditions
+- Gestione dello stato distribuito tra tab, ad esempio se si mette il sesson storage un token, cliccand il link in target blank si divrebe rifare l'autenticazione e quindi non si arriverebbe alla pagina voluto, quindi tutti i target blank come link non funzionerebbero per un design scelto nel processo di autenticazione, funzionerebbe se mettessimo il token in localstorage invece, ma osi risolviamo la UX e non il problema di fondo de quale bbiamo gia parlato
 
 Tutti questi problemi hanno una soluzione comune: **Backend for Frontend**.
 
 Un BFF è un backend leggero che sta tra il frontend e le API vere. Gestisce OAuth, tiene i token in modo sicuro, fa da proxy per le richieste API. Il frontend diventa "dumb": fa solo richieste al BFF, che si occupa di tutta la sicurezza.
 
-### BFF Architecture - Come Funziona
+TODO: dire che e' un esempio che ho fatto io, ma in realta non serve che sia un proxy, e non serve che stiano su domini diversi, il proxy e' comodo perche funzionerebbe con qualsiasi be e permetterebbe di fare il passaggio in un giorno massimo da una architettura che non adotta il BFF al BFF. Ma si puo implementare direttamente dentro a prcesso del proprio backend, facendolo dipendere dal framework etc, questo non lo ho fatto. O in alternativa puo essere messo come sidecar dentro al pod di un kebernetes, Insomma, quel che voglio dire e' che non e' necessario che sia un proxy. Io l'ho fatto per avere un riferimento globale ed anche per vedere quanto diventano seplici sia il be sia il fe. Alla fine infatti vediamo cosa rimane da fare al fe ed al be, che saranno abbastanza scarni infatti.
+
+### BFF Architecture
 
 **Backend for Frontend: il pattern che risolve i problemi delle SPA**
 
@@ -843,6 +724,8 @@ Un BFF è un backend leggero che sta tra il frontend e le API vere. Gestisce OAu
 └─────────────┘ └─────────────┘
 ```
 
+TODO: mettere lo scema grafico di quel che adesso usiamo, quindi quand e' il fe che interaggisce con IP ed il BE non ci interaggisce mai
+
 **Cosa fa il BFF:**
 
 1. **Gestisce OAuth flow**
@@ -864,8 +747,6 @@ Un BFF è un backend leggero che sta tra il frontend e le API vere. Gestisce OAu
    - Nessuna logica OAuth
    - Nessuna gestione token
    - Solo fetch('/api/...')
-
-**Discorso:**
 
 Il BFF è un pattern architetturale che risolve elegantemente i problemi delle SPA.
 
@@ -900,9 +781,7 @@ Questo ha vantaggi enormi:
 - **Riusabilità**: Lo stesso BFF può servire frontend diversi (web, mobile)
 - **Flessibilità**: Puoi cambiare identity provider senza toccare il frontend
 
-Il BFF non è un'idea nuova. È un pattern raccomandato da OAuth2 best practices per le SPA. Ma pochi lo implementano correttamente.
-
-### Il Mio BFF - Implementazione Concreta
+### Implementazione
 
 **OAuth2 BFF Proxy: cosa ho costruito**
 
@@ -945,8 +824,6 @@ Il BFF non è un'idea nuova. È un pattern raccomandato da OAuth2 best practices
 - Sub claim validation tra ID e access token
 - Token revocation su logout
 
-**Discorso:**
-
 Ok, dopo tutta questa teoria, vi mostro cosa ho costruito.
 
 Il mio BFF è un proxy riusabile che implementa tutto quello di cui abbiamo parlato. Non è un esempio giocattolo, è production-ready.
@@ -984,7 +861,7 @@ Il backend non deve fare niente di complesso. Basta leggere gli header. Niente v
 
 E quando l'utente fa logout, il BFF revoca i token sull'identity provider. Non solo cancella i cookie locali, ma dice all'IdP "questi token non sono più validi". Questo è importante se l'utente ha sessioni su dispositivi multipli.
 
-### BFF Flow - Login Completo
+### BFF Flow - Login
 
 **Sequenza completa di un login con il BFF**
 
@@ -1065,8 +942,6 @@ E quando l'utente fa logout, il BFF revoca i token sull'identity provider. Non s
 15. User è loggato!
 ```
 
-**Discorso:**
-
 Questo è il flusso completo, passo per passo. Sembra complicato scritto così, ma nella pratica è fluido e veloce.
 
 Il punto chiave è che ogni step ha uno scopo di sicurezza:
@@ -1133,8 +1008,6 @@ E tutto questo è trasparente per il frontend. Il frontend fa solo `window.locat
 11. Frontend riceve dati
 ```
 
-**Discorso:**
-
 Questo è il flusso per ogni richiesta API. Sembra lungo, ma è velocissimo perché la maggior parte sono operazioni in memoria.
 
 Il punto chiave è lo step 7-8: il BFF trasforma i token JWT in header HTTP semplici.
@@ -1163,7 +1036,7 @@ if (!userId) return res.status(401).send("Unauthorized");
 
 Molto più semplice. E più sicuro, perché la logica complessa di validazione è centralizzata nel BFF invece di essere duplicata in ogni microservizio.
 
-### Custom Claims - Estendere Le Informazioni Utente
+### Custom Claims
 
 **Come passare informazioni custom dal JWT al backend**
 
@@ -1206,8 +1079,6 @@ if (userGroups.includes("admin")) {
 }
 ```
 
-**Discorso:**
-
 Una feature che trovo molto utile è la possibilità di estrarre custom claims dal JWT e passarli come header.
 
 Ogni identity provider permette di aggiungere claims custom ai token. Cognito ha `custom:*` e `cognito:*` claims. Entra ID permette di aggiungere claims custom. Keycloak è super flessibile.
@@ -1235,7 +1106,7 @@ Questo è particolarmente utile per RBAC (Role-Based Access Control) o ABAC (Att
 
 Ovviamente, il backend deve fidarsi di questi header. Ma può farlo perché vengono dal BFF, che è parte del tuo sistema, non dal client. Il frontend non può manipolare questi header perché non passa attraverso il BFF, passa attraverso il browser che li aggiunge automaticamente.
 
-### Deployment - Come Usarlo
+### Deployment
 
 **Integrare il BFF nel vostro stack**
 
@@ -1287,8 +1158,6 @@ docker run -p 3000:3000 \
   your-bff-image
 ```
 
-**Discorso:**
-
 Usare il BFF è semplice. È un'applicazione standalone che potete deployare come qualsiasi altro servizio.
 
 **Architettura**: Il BFF sta tra il frontend e il backend. Può essere sulla stessa macchina/container del frontend o separato. L'importante è che il frontend faccia richieste al BFF, non direttamente al backend.
@@ -1311,151 +1180,14 @@ Le configurazioni principali sono:
 
 **Monitoring**: Il BFF logga tutto con Pino. Potete configurare il log level (trace, debug, info, warn, error) e integrare con i vostri sistemi di logging (CloudWatch, Datadog, etc.).
 
-### Cosa NON Fa Il BFF
-
-**Limiti e responsabilità**
-
-**Il BFF NON gestisce:**
-
-**Autorizzazione business logic**
-
-- Quale utente può vedere quali dati
-- Permessi granulari su risorse
-- Business rules complesse
-
-  **Gestione utenti**
-
-- Creazione account
-- Password reset
-- Profili utente
-
-  **Rate limiting**
-
-- Throttling per utente
-- Quota management
-
-  **Caching**
-
-- Cache delle risposte API
-- Cache dei dati utente
-
-  **Validazione input**
-
-- Validazione dei dati business
-- Sanitizzazione input
-
-**Queste responsabilità sono del backend!**
-
-**Il BFF fa solo:**
-Autenticazione (OAuth flow)
-Token management (storage, refresh, validation)
-Proxy (forward requests con user context)
-
-**Discorso:**
-
-È importante capire cosa il BFF NON fa, perché vedo spesso confusione su questo.
-
-Il BFF non è un API gateway completo. Non è un backend completo. È un proxy specializzato per autenticazione.
-
-**Autorizzazione**: Il BFF verifica che l'utente sia autenticato e passa le sue informazioni al backend. Ma non decide se l'utente può fare una specifica azione. Quello è compito del backend.
-
-Esempio: il BFF sa che l'utente è "user-123". Ma non sa se "user-123" può cancellare il documento "doc-456". Quella logica sta nel backend.
-
-**Gestione utenti**: Il BFF non crea account, non resetta password, non gestisce profili. Quello è compito dell'identity provider (Cognito, Entra, etc.) e del vostro backend se avete logica custom.
-
-**Rate limiting**: Il BFF non fa throttling. Se volete limitare le richieste per utente, fatelo nel backend o in un API gateway dedicato.
-
-**Caching**: Il BFF non cacha le risposte API. Passa le richieste e le risposte in modo trasparente. Se volete caching, fatelo nel backend o con un reverse proxy (Nginx, Varnish).
-
-**Validazione input**: Il BFF non valida i dati business. Se l'utente invia `{"age": -5}`, il BFF lo passa al backend. Il backend deve validare che l'età sia positiva.
-
-Il BFF ha un solo job: gestire l'autenticazione in modo sicuro e semplificare la vita al frontend e al backend. Fa questo job molto bene, ma non prova a fare altro.
-
-Questo è un design intenzionale. Un componente che fa una cosa sola e la fa bene è più facile da capire, testare, e mantenere di un componente che prova a fare tutto.
-
-### Confronto Con Alternative
-
-**BFF vs altre soluzioni**
-
-**1. OAuth nel frontend (SPA pura)**
-
-Client secret esposto o PKCE obbligatorio
-Token in localStorage (XSS risk)
-Logica complessa nel frontend
-Difficile da testare e debuggare
-Nessun backend aggiuntivo
-
-**2. Session-based auth tradizionale**
-
-Sicuro (session ID in HTTP-only cookie)
-Semplice da capire
-Non funziona bene con microservizi
-Richiede session storage condiviso
-Non standard (ogni app lo fa diversamente)
-
-**3. API Gateway con auth plugin**
-
-Centralizzato
-Scalabile
-Complesso da configurare
-Vendor lock-in
-Overkill per app semplici
-
-**4. BFF (questo progetto)**
-
-Sicuro (HTTP-only cookies, PKCE, validazione completa)
-Semplice per frontend e backend
-Riusabile e configurabile
-Standard (OAuth2 + OIDC)
-Leggero e facile da deployare
-⚠️ Un componente aggiuntivo da gestire
-
-**Discorso:**
-
-Vediamo come il BFF si confronta con altre soluzioni comuni.
-
-**OAuth nel frontend**: È possibile fare OAuth direttamente nel frontend con PKCE. Ma dovete gestire token storage (localStorage = XSS risk), token refresh (complesso), e avete logica di sicurezza nel frontend (non ideale). Il BFF risolve tutti questi problemi.
-
-**Session-based auth**: Le sessioni tradizionali (session ID in cookie, stato nel server) sono sicure e semplici. Ma non scalano bene con microservizi perché ogni servizio deve accedere allo stesso session store. E non sono standard: ogni framework lo fa diversamente. OAuth2 + JWT è uno standard che funziona ovunque.
-
-**API Gateway**: Gateway come Kong, AWS API Gateway, o Apigee possono gestire auth. Ma sono complessi da configurare, spesso costosi, e overkill se avete solo bisogno di auth. Il BFF è più leggero e specifico.
-
-**BFF**: Combina i vantaggi di tutte le soluzioni. Sicuro come le sessioni, standard come OAuth, semplice da usare. L'unico "svantaggio" è che è un componente aggiuntivo, ma è così leggero che il costo è minimo.
-
-Nella mia esperienza, per la maggior parte delle applicazioni web moderne (SPA + API backend), il BFF è la soluzione migliore. Bilanciamento perfetto tra sicurezza, semplicità, e standard.
-
 ## Demo
 
-Ok, basta teoria, penso di avervi annoiato abbastanzza. Vediamo il BFF in azione.
-
-Il frontend in tutto questo? Fa solo `fetch('/api/users')`. Non sa niente di token, refresh, header... niente.
-È bello nella sua semplicità a parer mio.
+Ok, basta teoria, penso di avervi annoiato abbastanzza. Vediamo il BFF in azione. Il frontend in tutto questo? Fa solo `fetch('/api/users')`. Non sa niente di token, refresh, header... niente. È bello nella sua semplicità a parer mio.
 
 ## Conclusioni
 
-Costruendo questo BFF, ho imparato diverse lezioni.
-
-La più importante: **OAuth sembra semplice ma non lo è**. Ci sono così tanti dettagli, così tanti modi di sbagliare. Ogni parametro (state, nonce, code_challenge) ha un motivo di esistere. Ogni validazione (exp, iss, aud) previene un attacco specifico.
-
-Ho visto (e fatto) tutti questi errori. localStorage per i token? Fatto. Dimenticato di validare l'expiration? Fatto. Confuso ID token e access token? Fatto.
-
-La buona notizia è che una volta che capisci i principi, diventa più chiaro. E una volta che hai un'implementazione corretta, puoi riusarla senza doverci ripensare ogni volta.
-
-Un'altra lezione: **la sicurezza è un sistema, non una feature**. Non puoi aggiungere "sicurezza" alla fine. Devi pensarci dall'inizio sia perche influisce sul design architettrale del codice, sia dela configurazione degli endpoint nella infrastruttura.
-
-E infine: **semplificare è difficile**. Sarebbe stato più facile fare un sistema complesso che fa tutto. Ma un sistema semplice che fa una cosa bene è più prezioso. Il BFF fa solo auth, ma lo fa molto bene.
-
-**Discorso:**
-
-Ok ragazzi, ricapitoliamo.
-
-Abbiamo parlato di un sacco di cose oggi: XSS, CSRF, MITM, cookie, OAuth, PKCE, JWT, vulnerabilità, attacchi, difese...
-
-Può sembrare overwhelming, lo so. Ma il punto è questo: **la sicurezza è importante e non è così difficile se capisci i principi**.
-
-I principi chiave sono:
-
-Spero che questa presentazione vi sia stata utile. Spero che il BFF vi semplifichi la vita. E spero che la prossima volta che implementate autenticazione, penserete a tutto quello di cui abbiamo parlato oggi.
+Ok ragazzi, ricapitoliamo. Abbiamo parlato di un sacco di cose oggi: XSS, CSRF, MITM, cookie, OAuth, PKCE, JWT, vulnerabilità, attacchi, difese...
+Per me e' stato abbastanza difficile entrare in ogni aspetto, e penso di non averne studiato neanche l'un percento. Ci sono così tanti dettagli, tanti modi di sbagliare. Ho visto (e fatto) tutti questi errori. localStorage per i token? Fatto. Non validato l'expiration? Confuso ID token e access token? Fatto. E quindi dopo averne avuto un immagine un po piu chiara l'ho messa qua in una presentazione ed in un progetto. Domande?
 
 ## References
 
