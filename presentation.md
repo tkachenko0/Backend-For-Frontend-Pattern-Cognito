@@ -7,6 +7,10 @@ Allora, allora, allora, allora
 Oggi vi volevo portare un po di argomenti relativi alla sicurezza ed autenticazione, stando abbastanza vicini al mondo del browser come argomento.
 Non mi concentrero' sugli attacchi hollywoodiani con gli hacker incappucciati, ma su un qualcosa di piu basilare. Parleremo di molti concetti di base prima e solo dopo parliamo di autenticazione, in particolare di un pattern di autenticazione che sta prendendo piede in quanto risponde a tantissimi criteri di securezza:
 
+Perche' diventa tanto importante conoscere queste basi? iu di pima, perche con gli agenti AI questa conoscenza man mano si sta perdendo lato umano
+e si sta trasferendo di piu verso una conoscenza della macchina, ed ultimamente ho visto gli automatismi che hanno creato certe aziende che usano per
+bucare l'autenticazione che mi hanno un po shokato, migiandi di scansioni automatiche delle richieste e se c'e' un buco, lo trovano.
+
 Fatta questa premessa, oggi quindi vedremo:
 
 - Come si rubano i token?
@@ -653,26 +657,24 @@ HTTP-only, Secure, SameSite cookies. Non localStorage, non sessionStorage, non c
 
 ## BFF
 
-Ok, ora siamo arrivati alla parte che mette in pratica cio che abbiamo visto prima. Come definiamo una implementazione che riespetta tutto questo? Perche questa e' la domanda che mi ero fatto io no? Sono tante cose da rispettare, e' abbastanza difficile trovare la quadra che rispetti tutti i parametri. Ma una soluzione c'e'.
+Ok, ora siamo arrivati alla parte che mette in pratica cio che abbiamo visto prima. Come definiamo una implementazione che rispetta questi requisiti di sicurezza? Questa e' la domanda che mi ero fatto io no? Sono tante cose da rispettare, e' abbastanza difficile trovare la quadra che rispetti tutti i parametri. Ma una soluzione c'e'.
 
 ### Il Problema delle SPA
 
-Ricapitoliamo. Abbiamo parlato di:
+Ricapitoliamo. Abbiamo parlato di 3 cose
 
 - Vulnerabilità e posto dove mettere i token
 - Flusso OAuth
 - JWT
 
-Abbiamo detto che il posto sicuro sono i cookie con una certa configurazione. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica di un bel po di cose sul JWT, verifica del parametro state, delle challenge durante la fase di login.
-
-A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta che lo possiamo fare. Siamo sicuri che vogliamo avere una minima parte di questa gestione a FE? È responsabilità del frontend gestire l'autenticazione? Per come la vedo io no. Il FE in funzione dei dati che ha deve capire se redirigere l'utente verso login, signup, o nascondere parti dell'applicativo, ma non gestire il flusso.
+Abbiamo detto che il posto sicuro sono i cookie con una certa configurazione. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica di un bel po di cose sul JWT, verifica del parametro state, delle challenge durante la fase di login. A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta che lo possiamo fare. Siamo sicuri che vogliamo avere una minima parte di questa gestione a FE? Per come la vedo io no. Il FE in funzione dei dati che ha deve capire se redirigere l'utente verso login, signup, o nascondere parti dell'applicativo, ma non gestire il flusso.
 
 **I problemi delle SPA:**
 
 1. **Nessun posto sicuro per il client secret**
    - Tutto il codice è visibile nel browser
 
-1. Impossibilita di gestirlo con i coockie che sono quello il meccanismo non accessibile a JS
+1. Impossibilita di gestirlo con i coockie che sono quelli il meccanismo non accessibile a JS
 
 1. **Storage insicuro**
 
@@ -686,17 +688,13 @@ A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta c
 
 - Gestire timing nel frontend
 - Race conditions
-- Gestione dello stato distribuito tra tab, ad esempio se si mette il sesson storage un token, cliccand il link in target blank si divrebe rifare l'autenticazione e quindi non si arriverebbe alla pagina voluto, quindi tutti i target blank come link non funzionerebbero per un design scelto nel processo di autenticazione, funzionerebbe se mettessimo il token in localstorage invece, ma osi risolviamo la UX e non il problema di fondo de quale bbiamo gia parlato
+- Gestione dello stato distribuito tra tab, ad esempio se si mette il sesson storage un token, cliccando il link in target blank si divrebe rifare l'autenticazione e quindi non si arriverebbe alla pagina voluto, quindi tutti i target blank come link non funzionerebbero per un design scelto nel processo di autenticazione, funzionerebbe se mettessimo il token in localstorage invece, ma osi risolviamo la UX e non il problema di fondo del quale abbiamo gia parlato
 
-Tutti questi problemi hanno una soluzione comune: **Backend for Frontend**.
+1. **In generale un flow sempre complesso, sopratutto se cminciamo a tenere conto dei parametri che ho visto non sempre essere usati come ad esempio state e challenge**
 
-Un BFF è un backend leggero che sta tra il frontend e le API vere. Gestisce OAuth, tiene i token in modo sicuro, fa da proxy per le richieste API. Il frontend diventa "dumb": fa solo richieste al BFF, che si occupa di tutta la sicurezza.
-
-TODO: dire che e' un esempio che ho fatto io, ma in realta non serve che sia un proxy, e non serve che stiano su domini diversi, il proxy e' comodo perche funzionerebbe con qualsiasi be e permetterebbe di fare il passaggio in un giorno massimo da una architettura che non adotta il BFF al BFF. Ma si puo implementare direttamente dentro a prcesso del proprio backend, facendolo dipendere dal framework etc, questo non lo ho fatto. O in alternativa puo essere messo come sidecar dentro al pod di un kebernetes, Insomma, quel che voglio dire e' che non e' necessario che sia un proxy. Io l'ho fatto per avere un riferimento globale ed anche per vedere quanto diventano seplici sia il be sia il fe. Alla fine infatti vediamo cosa rimane da fare al fe ed al be, che saranno abbastanza scarni infatti.
+Tutti questi problemi hanno una soluzione: Backend for Frontend. Un BFF è un pattern che consiste nel avere un backend leggero che sta tra il frontend e l'API vera. Gestisce OAuth, tratta i token in modo sicuro, fa da proxy per le richieste API. Il frontend diventa "dumb": fa solo richieste al BFF, che si occupa di tutta la sicurezza.
 
 ### BFF Architecture
-
-**Backend for Frontend: il pattern che risolve i problemi delle SPA**
 
 ```
 ┌─────────────┐
@@ -726,6 +724,8 @@ TODO: dire che e' un esempio che ho fatto io, ma in realta non serve che sia un 
 
 TODO: mettere lo scema grafico di quel che adesso usiamo, quindi quand e' il fe che interaggisce con IP ed il BE non ci interaggisce mai
 
+TODO: dire che e' un esempio che ho fatto io, ma in realta non serve che sia un proxy, e non serve che stiano su domini diversi, il proxy e' comodo perche funzionerebbe con qualsiasi be e permetterebbe di fare il passaggio in un giorno massimo da una architettura che non adotta il BFF al BFF. Ma si puo implementare direttamente dentro a prcesso del proprio backend, facendolo dipendere dal framework etc, questo non lo ho fatto. O in alternativa puo essere messo come sidecar dentro al pod di un kebernetes, Insomma, quel che voglio dire e' che non e' necessario che sia un proxy. Io l'ho fatto per avere un riferimento globale ed anche per vedere quanto diventano seplici sia il be sia il fe. Alla fine infatti vediamo cosa rimane da fare al fe ed al be, che saranno abbastanza scarni infatti.
+
 **Cosa fa il BFF:**
 
 1. **Gestisce OAuth flow**
@@ -733,100 +733,35 @@ TODO: mettere lo scema grafico di quel che adesso usiamo, quindi quand e' il fe 
    - `/auth/callback` → scambia code per token
    - `/auth/logout` → revoca token
 
+   Il frontend non sa nemmeno cos'è OAuth. Quando l'utente clicca "Login", il frontend fa semplicemente `window.location.href = '/auth/login'`. Il BFF gestisce tutto il flusso: redirect all'identity provider, callback, scambio code per token, validazione, tutto.
+
 2. **Memorizza token in HTTP-only cookies**
    - `access_token`
    - `refresh_token`
    - `id_token`
+
+   I token (access, refresh, ID) vengono memorizzati in HTTP-only cookies. Il frontend non li vede mai, non li tocca mai. Sono gestiti automaticamente dal browser.
 
 3. **Fa da proxy per le API**
    - `/api/*` → proxy a backend
    - Inietta header utente (X-User-Sub, X-User-Email)
    - Gestisce token refresh automaticamente
 
+   Tutte le richieste API passano attraverso il BFF. Il frontend fa `fetch('/api/users')`. Il BFF:
+   - Prende i token dai cookie
+   - Verifica che siano validi (e li refresha se necessario)
+   - Estrae informazioni dall'ID token (sub, email, custom claims)
+   - Fa la richiesta al backend vero, iniettando header tipo `X-User-Sub: user-123`
+   - Ritorna la risposta al frontend
+
 4. **Semplifica il frontend**
    - Nessuna logica OAuth
    - Nessuna gestione token
    - Solo fetch('/api/...')
 
-Il BFF è un pattern architetturale che risolve elegantemente i problemi delle SPA.
-
-L'idea è semplice: metti un backend leggero tra il frontend e tutto il resto. Questo backend:
-
-**1. Gestisce OAuth**
-
-Il frontend non sa nemmeno cos'è OAuth. Quando l'utente clicca "Login", il frontend fa semplicemente `window.location.href = '/auth/login'`. Il BFF gestisce tutto il flusso: redirect all'identity provider, callback, scambio code per token, validazione, tutto.
-
-**2. Memorizza token in modo sicuro**
-
-I token (access, refresh, ID) vengono memorizzati in HTTP-only cookies. Il frontend non li vede mai, non li tocca mai. Sono gestiti automaticamente dal browser.
-
-**3. Fa da proxy**
-
-Tutte le richieste API passano attraverso il BFF. Il frontend fa `fetch('/api/users')`. Il BFF:
-
-- Prende i token dai cookie
-- Verifica che siano validi (e li refresha se necessario)
-- Estrae informazioni dall'ID token (sub, email, custom claims)
-- Fa la richiesta al backend vero, iniettando header tipo `X-User-Sub: user-123`
-- Ritorna la risposta al frontend
-
-**4. Semplifica il frontend**
-
 Il frontend diventa stupido (in senso buono). Non ha logica di autenticazione, non gestisce token, non sa niente di OAuth. Fa solo richieste HTTP normali. Se la richiesta ritorna 401, significa che l'utente non è loggato. Fine.
 
-Questo ha vantaggi enormi:
-
-- **Sicurezza**: Tutta la logica sensibile è nel backend
-- **Semplicità**: Il frontend è più semplice da sviluppare e mantenere
-- **Riusabilità**: Lo stesso BFF può servire frontend diversi (web, mobile)
-- **Flessibilità**: Puoi cambiare identity provider senza toccare il frontend
-
 ### Implementazione
-
-**OAuth2 BFF Proxy: cosa ho costruito**
-
-**Features:**
-
-**Multi-provider**
-
-- AWS Cognito
-- Microsoft Entra ID
-- Keycloak
-
-  **OAuth2 + PKCE completo**
-
-- State parameter validation
-- Nonce parameter validation
-- Code challenge/verifier
-
-  **Cookie sicuri**
-
-- HTTP-only
-- Secure
-- SameSite (strict per auth, lax per OAuth flow)
-
-  **Token management**
-
-- Automatic refresh
-- Rotation dei refresh token
-- Validazione completa (firma, claims, expiration)
-
-  **Proxy intelligente**
-
-- Inietta header utente (X-User-Sub, X-User-Email)
-- Custom claims configurabili
-- Optional authentication per /api/\*
-
-  **Security best practices**
-
-- JWT signature verification con JWKS
-- Audience validation
-- Sub claim validation tra ID e access token
-- Token revocation su logout
-
-Ok, dopo tutta questa teoria, vi mostro cosa ho costruito.
-
-Il mio BFF è un proxy riusabile che implementa tutto quello di cui abbiamo parlato. Non è un esempio giocattolo, è production-ready.
 
 **Multi-provider**: Supporta AWS Cognito, Microsoft Entra ID, e Keycloak. Aggiungere altri provider è questione di implementare un'interfaccia. La logica OAuth è astratta e riusabile.
 
@@ -836,7 +771,7 @@ Il mio BFF è un proxy riusabile che implementa tutto quello di cui abbiamo parl
 
 **Token management**: Il BFF gestisce automaticamente il refresh dei token. Se l'access token sta per scadere (configurabile, default 5 minuti prima), lo refresha in modo trasparente. I refresh token vengono rotated ad ogni uso. Se rileva riuso, revoca tutto.
 
-**Proxy intelligente**: Tutte le richieste a `/api/*` vengono proxate al backend. Prima di proxare, il BFF:
+**Proxy**: Tutte le richieste a `/api/*` vengono proxate al backend. Prima di proxare, il BFF:
 
 1. Verifica che i token siano validi
 2. Estrae informazioni dall'ID token
@@ -850,7 +785,7 @@ Il backend riceve header tipo:
 
 Il backend non deve fare niente di complesso. Basta leggere gli header. Niente validazione JWT, niente chiamate a JWKS, niente gestione OAuth. Solo `if (req.headers['x-user-sub']) { ... }`.
 
-**Security**: Ogni JWT viene verificato completamente:
+**Security**: Ogni JWT viene verificato:
 
 - Firma con chiavi pubbliche da JWKS
 - Algoritmo esplicito (configurabile)
@@ -942,22 +877,6 @@ E quando l'utente fa logout, il BFF revoca i token sull'identity provider. Non s
 15. User è loggato!
 ```
 
-Questo è il flusso completo, passo per passo. Sembra complicato scritto così, ma nella pratica è fluido e veloce.
-
-Il punto chiave è che ogni step ha uno scopo di sicurezza:
-
-- **State** previene CSRF sul flusso OAuth
-- **Nonce** previene replay dell'ID token
-- **PKCE** (code_verifier/challenge) previene intercettazione dell'authorization code
-- **Cookie HTTP-only** prevengono XSS
-- **SameSite=lax** per OAuth cookies permette il callback
-- **SameSite=strict** per auth cookies previene CSRF
-- **Validazione completa** previene token forgiati o modificati
-
-Ogni protezione copre un vettore di attacco specifico. Insieme, creano un sistema robusto.
-
-E tutto questo è trasparente per il frontend. Il frontend fa solo `window.location.href = '/auth/login'` e poi `fetch('/api/...')`. Non sa niente di OAuth, PKCE, state, nonce, token refresh... niente.
-
 ### BFF Flow - API Request
 
 **Cosa succede quando il frontend chiama un'API**
@@ -1008,178 +927,6 @@ E tutto questo è trasparente per il frontend. Il frontend fa solo `window.locat
 11. Frontend riceve dati
 ```
 
-Questo è il flusso per ogni richiesta API. Sembra lungo, ma è velocissimo perché la maggior parte sono operazioni in memoria.
-
-Il punto chiave è lo step 7-8: il BFF trasforma i token JWT in header HTTP semplici.
-
-Il backend non deve sapere niente di JWT, OAuth, JWKS, validazione... Riceve header HTTP normali con informazioni sull'utente e basta.
-
-Questo semplifica enormemente il backend. Invece di:
-
-```javascript
-// Backend senza BFF
-const token = req.headers.authorization.split(' ')[1]
-const publicKey = await fetchJWKS()
-const decoded = jwt.verify(token, publicKey, { algorithms: ['RS256'], ... })
-if (decoded.exp < Date.now()) { ... }
-if (decoded.iss !== 'expected-issuer') { ... }
-const userId = decoded.sub
-```
-
-Fai semplicemente:
-
-```javascript
-// Backend con BFF
-const userId = req.headers["x-user-sub"];
-if (!userId) return res.status(401).send("Unauthorized");
-```
-
-Molto più semplice. E più sicuro, perché la logica complessa di validazione è centralizzata nel BFF invece di essere duplicata in ogni microservizio.
-
-### Custom Claims
-
-**Come passare informazioni custom dal JWT al backend**
-
-**Configurazione:**
-
-```env
-CUSTOM_CLAIMS=custom:groups,cognito:groups,department,role
-```
-
-**ID Token:**
-
-```json
-{
-  "sub": "user-123",
-  "email": "user@example.com",
-  "custom:groups": ["admin", "developers"],
-  "cognito:groups": ["eu-users"],
-  "department": "Engineering",
-  "role": "Senior Developer"
-}
-```
-
-**Header inviati al backend:**
-
-```
-X-User-Sub: user-123
-X-User-Email: user@example.com
-X-User-Custom-Groups: admin,developers
-X-User-Cognito-Groups: eu-users
-X-User-Department: Engineering
-X-User-Role: Senior Developer
-```
-
-**Backend:**
-
-```javascript
-const userGroups = req.headers["x-user-custom-groups"]?.split(",") || [];
-if (userGroups.includes("admin")) {
-  // Admin logic
-}
-```
-
-Una feature che trovo molto utile è la possibilità di estrarre custom claims dal JWT e passarli come header.
-
-Ogni identity provider permette di aggiungere claims custom ai token. Cognito ha `custom:*` e `cognito:*` claims. Entra ID permette di aggiungere claims custom. Keycloak è super flessibile.
-
-Questi claims possono contenere qualsiasi informazione: gruppi, ruoli, department, tenant ID, feature flags...
-
-Il BFF può essere configurato per estrarre questi claims e trasformarli in header HTTP. La configurazione è semplice:
-
-```env
-CUSTOM_CLAIMS=custom:groups,department,role
-```
-
-Il BFF:
-
-1. Legge questa configurazione
-2. Estrae i claims specificati dall'ID token
-3. Li trasforma in header con naming convention `X-User-{Claim-Name}`
-4. I due punti (`:`) vengono sostituiti con trattini (`-`)
-
-Quindi `custom:groups` diventa `X-User-Custom-Groups`.
-
-Il backend riceve questi header e può usarli per logica di autorizzazione. Niente parsing JWT, niente validazione, solo lettura di header.
-
-Questo è particolarmente utile per RBAC (Role-Based Access Control) o ABAC (Attribute-Based Access Control). Invece di fare query al database per sapere i ruoli dell'utente, li hai già negli header.
-
-Ovviamente, il backend deve fidarsi di questi header. Ma può farlo perché vengono dal BFF, che è parte del tuo sistema, non dal client. Il frontend non può manipolare questi header perché non passa attraverso il BFF, passa attraverso il browser che li aggiunge automaticamente.
-
-### Deployment
-
-**Integrare il BFF nel vostro stack**
-
-**Architettura tipica:**
-
-```
-┌──────────────────────────────────────┐
-│         Load Balancer / CDN          │
-└────────────┬─────────────────────────┘
-             │
-             ├─────────────┬────────────┐
-             │             │            │
-             ▼             ▼            ▼
-      ┌──────────┐   ┌─────────┐  ┌─────────┐
-      │ Frontend │   │   BFF   │  │ Backend │
-      │  (SPA)   │   │ (Proxy) │  │  (API)  │
-      └──────────┘   └─────────┘  └─────────┘
-```
-
-**Configurazione minima:**
-
-```env
-# Identity Provider
-AUTH_PROVIDER=cognito
-COGNITO_USER_POOL_ID=eu-west-1_ABC123
-COGNITO_USER_POOL_CLIENT_ID=abc123...
-COGNITO_USER_POOL_CLIENT_SECRET=xyz789...
-COGNITO_AWS_REGION=eu-west-1
-
-# URLs
-REDIRECT_URI=https://yourapp.com/auth/callback
-LOGOUT_REDIRECT_URI=https://yourapp.com/auth/signout-callback
-FRONTEND_REDIRECT_URL=https://yourapp.com
-BACKEND_URL=https://api.yourapp.com
-
-# Security
-JWT_ALGORITHM=RS256
-JWKS_CACHE_MAX_AGE_MS=600000
-TOKEN_REFRESH_THRESHOLD_SECONDS=300
-```
-
-**Docker:**
-
-```bash
-docker run -p 3000:3000 \
-  -e AUTH_PROVIDER=cognito \
-  -e COGNITO_USER_POOL_ID=... \
-  -e BACKEND_URL=https://api.yourapp.com \
-  your-bff-image
-```
-
-Usare il BFF è semplice. È un'applicazione standalone che potete deployare come qualsiasi altro servizio.
-
-**Architettura**: Il BFF sta tra il frontend e il backend. Può essere sulla stessa macchina/container del frontend o separato. L'importante è che il frontend faccia richieste al BFF, non direttamente al backend.
-
-**Configurazione**: Tutto è configurato via environment variables. Niente file di config complessi, niente build-time configuration. Cambiate le env vars e riavviate.
-
-Le configurazioni principali sono:
-
-1. **Identity Provider**: Quale provider usate (Cognito, Entra, Keycloak) e le sue credenziali.
-
-2. **URLs**: Dove redirigere dopo login/logout, dove sta il backend.
-
-3. **Security**: Quale algoritmo JWT, quanto cachare le JWKS, quando refreshare i token.
-
-**Docker**: Il BFF è containerizzato. Potete deployarlo su qualsiasi piattaforma che supporta Docker: ECS, Kubernetes, Cloud Run, App Runner...
-
-**Sviluppo locale**: Per sviluppo locale, potete usare HTTP invece di HTTPS (il BFF rileva automaticamente e non imposta il flag `secure` sui cookie). Ma in produzione, sempre HTTPS.
-
-**Scalabilità**: Il BFF è stateless (a parte le JWKS cache). Potete scalare orizzontalmente senza problemi. Mettete un load balancer davanti e aggiungete istanze.
-
-**Monitoring**: Il BFF logga tutto con Pino. Potete configurare il log level (trace, debug, info, warn, error) e integrare con i vostri sistemi di logging (CloudWatch, Datadog, etc.).
-
 ## Demo
 
 Ok, basta teoria, penso di avervi annoiato abbastanzza. Vediamo il BFF in azione. Il frontend in tutto questo? Fa solo `fetch('/api/users')`. Non sa niente di token, refresh, header... niente. È bello nella sua semplicità a parer mio.
@@ -1187,7 +934,7 @@ Ok, basta teoria, penso di avervi annoiato abbastanzza. Vediamo il BFF in azione
 ## Conclusioni
 
 Ok ragazzi, ricapitoliamo. Abbiamo parlato di un sacco di cose oggi: XSS, CSRF, MITM, cookie, OAuth, PKCE, JWT, vulnerabilità, attacchi, difese...
-Per me e' stato abbastanza difficile entrare in ogni aspetto, e penso di non averne studiato neanche l'un percento. Ci sono così tanti dettagli, tanti modi di sbagliare. Ho visto (e fatto) tutti questi errori. localStorage per i token? Fatto. Non validato l'expiration? Confuso ID token e access token? Fatto. E quindi dopo averne avuto un immagine un po piu chiara l'ho messa qua in una presentazione ed in un progetto. Domande?
+Per me e' stato abbastanza difficile entrare in ogni aspetto, e penso di non averne studiato neanche l'un percento. Ci sono così tanti dettagli, tanti modi di sbagliare. Ho visto (e fatto) tutti questi errori. localStorage per i token? Fatto. Non validato l'expiration? Confuso ID token e access token? Fatto. E quindi dopo averne avuto un immagine un po piu chiara l'ho messa qua in una presentazione ed in un progetto.
 
 ## References
 
