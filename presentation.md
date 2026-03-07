@@ -657,44 +657,67 @@ HTTP-only, Secure, SameSite cookies. Non localStorage, non sessionStorage, non c
 
 ## BFF
 
-Ok, ora siamo arrivati alla parte che mette in pratica cio che abbiamo visto prima. Come definiamo una implementazione che rispetta questi requisiti di sicurezza? Questa e' la domanda che mi ero fatto io no? Sono tante cose da rispettare, e' abbastanza difficile trovare la quadra che rispetti tutti i parametri. Ma una soluzione c'e'.
+Ok, ora siamo arrivati alla parte che mette in pratica quello che abbiamo visto. Come definiamo un'implementazione che rispetta questi requisiti di sicurezza? Sono tante cose da rispettare, è difficile trovare la quadra. Ma una soluzione c'è.
 
 ### Il Problema delle SPA
 
-Ricapitoliamo. Abbiamo parlato di 3 cose
+Ricapitoliamo. Abbiamo parlato di 3 cose:
 
-- Vulnerabilità e posto dove mettere i token
+- Vulnerabilità e storage dei token
 - Flusso OAuth
 - JWT
 
-Abbiamo detto che il posto sicuro sono i cookie con una certa configurazione. Il client secret non può stare a FE. Serve fare tante validazioni e gestire tanti casi: refresh del token, challenge, verifica di un bel po di cose sul JWT, verifica del parametro state, delle challenge durante la fase di login. A parte il fatto che non possiamo tenere il client secret a FE, facciamo finta che lo possiamo fare. Siamo sicuri che vogliamo avere una minima parte di questa gestione a FE? Per come la vedo io no. Il FE in funzione dei dati che ha deve capire se redirigere l'utente verso login, signup, o nascondere parti dell'applicativo, ma non gestire il flusso.
+Il posto sicuro sono i cookie HTTP-only. Il client secret non può stare a FE. Serve gestire: refresh del token, PKCE, validazione JWT, verifica state e nonce. Anche se potessimo tenere il client secret a FE, vogliamo davvero questa complessità nel frontend? No. Il FE deve solo decidere cosa mostrare, non gestire il flusso OAuth.
 
 **I problemi delle SPA:**
 
 1. **Nessun posto sicuro per il client secret**
    - Tutto il codice è visibile nel browser
 
-1. Impossibilita di gestirlo con i coockie che sono quelli il meccanismo non accessibile a JS
+2. **Impossibilità di usare HTTP-only cookies**
+   - JavaScript non può accedere ai cookie sicuri
 
-1. **Storage insicuro**
+3. **Storage insicuro**
+   - localStorage → vulnerabile a XSS
 
-- localStorage → vulnerabile a XSS
+4. **Tante librerie da integrare**
+   - OAuth client, JWT decoder, token manager, etc.
 
-1. Un sacco di librerie da tirare dentro
+5. **Implementazione dipendente dal provider**
+   - Cognito, Entra, Keycloak hanno API diverse
 
-1. una implementazione che e' fortemente dipendente dal provider
+6. **Token refresh complesso**
+   - Gestire timing nel frontend
+   - Race conditions tra richieste
+   - Stato distribuito tra tab (sessionStorage richiede re-login su ogni tab, localStorage è insicuro)
 
-1. **Token refresh complesso**
+7. **Flow complesso**
+   - State, nonce, PKCE, validazioni... tutto nel frontend
 
-- Gestire timing nel frontend
-- Race conditions
-- Gestione dello stato distribuito tra tab, ad esempio se si mette il sesson storage un token, cliccando il link in target blank si divrebe rifare l'autenticazione e quindi non si arriverebbe alla pagina voluto, quindi tutti i target blank come link non funzionerebbero per un design scelto nel processo di autenticazione, funzionerebbe se mettessimo il token in localstorage invece, ma osi risolviamo la UX e non il problema di fondo del quale abbiamo gia parlato
-
-1. **In generale un flow sempre complesso, sopratutto se cminciamo a tenere conto dei parametri che ho visto non sempre essere usati come ad esempio state e challenge**
-
-Tutti questi problemi hanno una soluzione: Backend for Frontend. Un BFF è un pattern che consiste nel avere un backend leggero che sta tra il frontend e l'API vera. Gestisce OAuth, tratta i token in modo sicuro, fa da proxy per le richieste API. Il frontend diventa "dumb": fa solo richieste al BFF, che si occupa di tutta la sicurezza.
+La soluzione: Backend for Frontend. Un backend leggero tra frontend e API. Gestisce OAuth, memorizza token in modo sicuro, fa da proxy. Il frontend diventa semplice: fa solo richieste al BFF.
 
 ### BFF Architecture
+
+**Architettura tradizionale (senza BFF):**
+
+```
+┌─────────────┐
+│   Browser   │
+│   (SPA)     │
+└──────┬──────┘
+       │
+       ├─────────────┐
+       │             │
+       ▼             ▼
+┌─────────────┐ ┌─────────────┐
+│   Identity  │ │   Backend   │
+│   Provider  │ │     API     │
+└─────────────┘ └─────────────┘
+```
+
+Frontend gestisce OAuth, memorizza token, li invia al backend. Complesso e insicuro.
+
+**Architettura con BFF:**
 
 ```
 ┌─────────────┐
@@ -707,10 +730,6 @@ Tutti questi problemi hanno una soluzione: Backend for Frontend. Un BFF è un pa
 ┌─────────────┐
 │     BFF     │
 │   (Proxy)   │
-├─────────────┤
-│ • OAuth     │
-│ • Cookies   │
-│ • Proxy     │
 └──────┬──────┘
        │
        ├─────────────┐
@@ -722,9 +741,17 @@ Tutti questi problemi hanno una soluzione: Backend for Frontend. Un BFF è un pa
 └─────────────┘ └─────────────┘
 ```
 
-TODO: mettere lo scema grafico di quel che adesso usiamo, quindi quand e' il fe che interaggisce con IP ed il BE non ci interaggisce mai
+Frontend fa solo richieste al BFF. BFF gestisce tutto: OAuth, token, proxy.
 
-TODO: dire che e' un esempio che ho fatto io, ma in realta non serve che sia un proxy, e non serve che stiano su domini diversi, il proxy e' comodo perche funzionerebbe con qualsiasi be e permetterebbe di fare il passaggio in un giorno massimo da una architettura che non adotta il BFF al BFF. Ma si puo implementare direttamente dentro a prcesso del proprio backend, facendolo dipendere dal framework etc, questo non lo ho fatto. O in alternativa puo essere messo come sidecar dentro al pod di un kebernetes, Insomma, quel che voglio dire e' che non e' necessario che sia un proxy. Io l'ho fatto per avere un riferimento globale ed anche per vedere quanto diventano seplici sia il be sia il fe. Alla fine infatti vediamo cosa rimane da fare al fe ed al be, che saranno abbastanza scarni infatti.
+**Nota sull'implementazione:**
+
+Il BFF non deve essere per forza un proxy separato. Può essere:
+
+- **Proxy standalone** (come questo esempio): funziona con qualsiasi backend, permette migrazione rapida
+- **Integrato nel backend**: parte del processo del vostro backend, dipende dal framework
+- **Sidecar in Kubernetes**: container separato nello stesso pod
+
+Ho scelto il proxy standalone per avere un riferimento riusabile e mostrare quanto diventano semplici sia FE che BE quando il BFF gestisce l'autenticazione.
 
 **Cosa fa il BFF:**
 
@@ -796,136 +823,42 @@ Il backend non deve fare niente di complesso. Basta leggere gli header. Niente v
 
 E quando l'utente fa logout, il BFF revoca i token sull'identity provider. Non solo cancella i cookie locali, ma dice all'IdP "questi token non sono più validi". Questo è importante se l'utente ha sessioni su dispositivi multipli.
 
-### BFF Flow - Login
+### BFF Flow
 
-**Sequenza completa di un login con il BFF**
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant BFF
+    participant IDP as Identity Provider
 
-```
-1. User clicca "Login" → GET /auth/login
-
-2. BFF genera:
-   - state (random)
-   - nonce (random)
-   - code_verifier (random)
-   - code_challenge = SHA256(code_verifier)
-
-3. BFF salva in HTTP-only cookies (SameSite=lax):
-   - oauth_state
-   - oauth_nonce
-   - code_verifier
-   - return_to (opzionale)
-
-4. BFF redirect a IdP:
-   /authorize?
-     client_id=...
-     &redirect_uri=.../auth/callback
-     &response_type=code
-     &scope=openid email profile
-     &state=...
-     &nonce=...
-     &code_challenge=...
-     &code_challenge_method=S256
-
-5. User fa login su IdP
-
-6. IdP redirect a /auth/callback?code=...&state=...
-
-7. BFF valida:
-   - state URL === oauth_state cookie
-   - Se non match → errore (CSRF detected)
-
-8. BFF scambia code per token:
-   POST /oauth2/token
-   {
-     grant_type: "authorization_code",
-     code: "...",
-     code_verifier: "...",  // dal cookie
-     client_id: "...",
-     client_secret: "...",
-     redirect_uri: "..."
-   }
-
-9. IdP valida:
-   - SHA256(code_verifier) === code_challenge memorizzato
-   - Se match → rilascia token
-
-10. BFF riceve:
-    - access_token
-    - refresh_token
-    - id_token
-
-11. BFF valida ID token:
-    - Firma (JWKS)
-    - Algoritmo
-    - Issuer
-    - Audience
-    - Expiration
-    - Nonce (deve matchare oauth_nonce cookie)
-
-12. BFF salva token in HTTP-only cookies (SameSite=strict):
-    - access_token
-    - refresh_token
-    - id_token
-
-13. BFF cancella cookie OAuth:
-    - oauth_state
-    - oauth_nonce
-    - code_verifier
-
-14. BFF redirect a frontend (o return_to se specificato)
-
-15. User è loggato!
+    Browser->>BFF: GET /auth/login
+    Note over BFF: Generate PKCE params:<br/>code_verifier = random(32 bytes)<br/>code_challenge = SHA256(verifier)
+    BFF->>Browser: Set cookies:<br/>oauth_state, code_verifier<br/>(HttpOnly, SameSite=Lax)
+    BFF->>Browser: HTTP 302 Redirect
+    Browser->>IDP: GET /login?<br/>code_challenge=...<br/>state=...<br/>code_challenge_method=S256
+    Note over IDP: Stores code_challenge
+    Note over Browser,IDP: User enters credentials
+    IDP->>Browser: HTTP 302 Redirect
+    Browser->>BFF: GET /?code=...&state=...<br/>Cookie: oauth_state, code_verifier
+    Note over BFF: Validate state:<br/>URL state === Cookie state
+    BFF->>IDP: POST /oauth2/token<br/>code + code_verifier
+    Note over IDP: Validates:<br/>SHA256(code_verifier) === code_challenge
+    IDP->>BFF: Returns tokens
+    BFF->>Browser: Delete: oauth_state, code_verifier<br/>Set: id_token, access_token, refresh_token<br/>(HttpOnly, SameSite=Strict)
 ```
 
-### BFF Flow - API Request
-
-**Cosa succede quando il frontend chiama un'API**
-
-```
-1. Frontend: fetch('/api/users')
-
-2. Browser invia automaticamente cookie:
-   - access_token
-   - refresh_token
-   - id_token
-
-3. BFF riceve richiesta
-
-4. BFF estrae token dai cookie
-
-5. BFF verifica access_token:
-   - Firma valida?
-   - Non scaduto?
-   - Issuer corretto?
-   - Audience corretto?
-
-6. Se scaduto o sta per scadere:
-   a. Usa refresh_token per ottenere nuovo access_token
-   b. Salva nuovo access_token in cookie
-   c. Salva nuovo refresh_token (rotation)
-   d. Invalida vecchio refresh_token
-
-7. BFF estrae claims da id_token:
-   - sub → X-User-Sub
-   - email → X-User-Email
-   - custom claims → X-User-Custom-*
-
-8. BFF fa richiesta a backend:
-   GET https://backend.com/users
-   Headers:
-     X-User-Sub: user-123
-     X-User-Email: user@example.com
-     X-User-Custom-Groups: admin,developers
-
-9. Backend processa richiesta:
-   - Legge header X-User-Sub
-   - Applica logica di autorizzazione
-   - Ritorna risposta
-
-10. BFF ritorna risposta a frontend
-
-11. Frontend riceve dati
-```
+1. **State**: Random string generated by BFF stored in HTTP-only cookie and sent to Identity Provider
+2. **Code Verifier**: Random string generated by BFF stored in HTTP-only cookie
+3. **Code Challenge**: SHA-256 hash of code verifier sent to Identity Provider in authorization URL
+4. **Login**: BFF redirects to the Identity Provider
+   - `state` and `code_challenge` sent to the Identity Provider in authorization URL
+   - The Identity Provider stores both values
+5. **Login Callback**: BFF validates state and exchanges code for tokens
+   - Validates: URL `state` parameter === `oauth_state` cookie (CSRF protection)
+   - Sends `code_verifier` to Identity Provider during token exchange
+   - Identity Provider validates: SHA256(code_verifier) === stored code_challenge
+   - If both validations pass: Issue tokens
+   - If either fails: Reject request
 
 ## Demo
 
@@ -938,14 +871,8 @@ Per me e' stato abbastanza difficile entrare in ogni aspetto, e penso di non ave
 
 ## References
 
-- [OAuth 2.0 Specification](https://datatracker.ietf.org/doc/html/rfc6749)
-- [Proof Key for Code Exchange specification](https://datatracker.ietf.org/doc/html/rfc7636)
-- [OAuth 2.0 Security Best Practices](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics)
 - [Which OAuth 2.0 Flow Should I Use?](https://auth0.com/docs/get-started/authentication-and-authorization-flow/which-oauth-2-0-flow-should-i-use)
 - poi ci sono le spiegazioni per ogni flusso
 - per il posto dove metterli [Questo](https://auth0.com/docs/libraries/auth0-single-page-app-sdk) dice "Storing tokens in browser local storage..." con delle cose che si possono includere come concetti
-- [BFF](https://auth0.com/blog/the-backend-for-frontend-pattern-bff/)
-- [AWS Endpoints](https://docs.aws.amazon.com/cognito/latest/developerguide/revocation-endpoint.html)
-- [MSAL ISSUE 62](https://github.com/AzureAD/microsoft-authentication-library-for-js/issues/602)
 - [Microsoft OAuth 2.0 authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
   - qua c'e' anche la nota su client_secret (which can store the client_secret securely)
