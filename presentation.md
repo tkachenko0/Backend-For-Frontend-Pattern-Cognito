@@ -4,7 +4,7 @@
 
 Fatta questa premessa, oggi quindi vedremo:
 
-- come perdere 400K transazioni in un paio di click?
+- come leggere i dettagli dio 400K transazioni in un paio di click?
 - Ma HTTPS ci salva davvero?
 - che giochi di indovinello si fanno con gli ataccanti?
 - Un framework FE moderno X ci protegge davvero da XSS?
