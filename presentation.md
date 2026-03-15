@@ -4,14 +4,15 @@
 
 Fatta questa premessa, oggi quindi vedremo:
 
-- Come si rubano i token?
-- Perché HTTPS non basta per essere sicuri?
-- Un framework FE X ci protegge davvero da XSS?
-- CORS protegge veramente dalle richiesta provenienti da origini inaspettate?
-- Se localstorage, session storage, memoria js non sono sicuri per un token, lo abbiamo sentito tutti tantissime volte, quale e' il posto sicuro?
+- come perdere 400K transazioni in un paio di click?
+- Ma HTTPS ci salva davvero?
+- che giochi di indovinello si fanno con gli ataccanti?
+- Un framework FE moderno X ci protegge davvero da XSS?
+- Perche CORS se ne frega della sicurezza
+- Se localstorage non sono sicuri per un token, lo abbiamo sentito tutti tantissime volte, quale e' il posto sicuro?
 - Cosa c'entra OAuth2 con tutto questo?
 - Cos'è PKCE?
-- Ed infine il Pattern Backend for Frontend
+- Ed infine BFF
 
 ## Core
 
