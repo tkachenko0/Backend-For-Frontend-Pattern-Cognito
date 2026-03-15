@@ -8,7 +8,7 @@ Fatta questa premessa, oggi quindi vedremo:
 - Ma HTTPS ci salva davvero?
 - che giochi di indovinello si fanno con gli ataccanti?
 - Un framework FE moderno X ci protegge davvero da XSS?
-- Perche CORS se ne frega della sicurezza
+- Perché CORS se ne frega della sicurezza
 - Se localstorage non sono sicuri per un token, lo abbiamo sentito tutti tantissime volte, quale e' il posto sicuro?
 - Cosa c'entra OAuth2 con tutto questo?
 - Cos'è PKCE?
