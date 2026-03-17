@@ -33,6 +33,7 @@ export const configSchema = z
       AuthProviders.COGNITO,
       AuthProviders.ENTRA,
       AuthProviders.KEYCLOAK,
+      AuthProviders.GOOGLE,
     ]),
   })
   .transform((data) => {

@@ -4,6 +4,8 @@ import { CognitoProvider } from './cognito/cognito';
 import { cognitoConfigSchema } from './cognito/cognito.config';
 import { EntraProvider } from './entra/entra';
 import { entraConfigSchema } from './entra/entra.config';
+import { GoogleProvider } from './google/google';
+import { googleConfigSchema } from './google/google.config';
 import { KeycloakProvider } from './keycloak/keycloak';
 import { keycloakConfigSchema } from './keycloak/keycloak.config';
 import { AuthProviders } from './provider.types';
@@ -46,6 +48,15 @@ export function createAuthProvider(config: ConfigService): AuthProvider {
         KEYCLOAK_OAUTH_SCOPES: env['KEYCLOAK_OAUTH_SCOPES'],
       });
       return new KeycloakProvider(keycloakConfig, config);
+    }
+
+    case AuthProviders.GOOGLE: {
+      const googleConfig = googleConfigSchema.parse({
+        GOOGLE_CLIENT_ID: env['GOOGLE_CLIENT_ID'],
+        GOOGLE_CLIENT_SECRET: env['GOOGLE_CLIENT_SECRET'],
+        GOOGLE_OAUTH_SCOPES: env['GOOGLE_OAUTH_SCOPES'],
+      });
+      return new GoogleProvider(googleConfig, config);
     }
 
     default:

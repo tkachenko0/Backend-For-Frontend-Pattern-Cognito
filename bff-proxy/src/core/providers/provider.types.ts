@@ -2,6 +2,7 @@ export const AuthProviders = {
   COGNITO: 'cognito',
   ENTRA: 'entra',
   KEYCLOAK: 'keycloak',
+  GOOGLE: 'google',
 } as const;
 
 export type AuthProviderType =

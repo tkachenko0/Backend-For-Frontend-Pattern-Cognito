@@ -2,7 +2,7 @@
 
 Reusable Backend-for-Frontend (BFF) proxy with OAuth 2.0 + PKCE authentication. Tokens are stored in HTTP-only cookies, and authenticated requests are proxied to your backend with user context injected as headers.
 
-**Supported providers:** AWS Cognito, Microsoft Entra ID, Keycloak
+**Supported providers:** AWS Cognito, Microsoft Entra ID, Keycloak, Google
 
 ## Why This Repository Exists
 
@@ -205,7 +205,7 @@ sequenceDiagram
 | `JWT_ALGORITHM`                   | JWT signature algorithm            | `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512` | Yes      |
 | `LOG_LEVEL`                       | Logging level                      | `trace`, `debug`, `info`, `warn`, `error`, `fatal`   | Yes      |
 | `TOKEN_REFRESH_THRESHOLD_SECONDS` | Token refresh threshold in seconds | `300`                                                | Yes      |
-| `AUTH_PROVIDER`                   | Authentication provider            | `cognito`, `entra`, `keycloak`                       | Yes      |
+| `AUTH_PROVIDER`                   | Authentication provider            | `cognito`, `entra`, `keycloak`, `google`             | Yes      |
 
 #### AWS Cognito Provider Configuration
 
@@ -244,6 +244,16 @@ Required only when `AUTH_PROVIDER=keycloak`:
 | `KEYCLOAK_CLIENT_ID`         | Client ID                                                                        | `my-app`                       | Yes      |
 | `KEYCLOAK_CLIENT_SECRET`     | Client secret                                                                    | `abc123...`                    | Yes      |
 | `KEYCLOAK_OAUTH_SCOPES`      | OAuth 2.0 scopes                                                                 | `openid email profile`         | Yes      |
+
+#### Google Provider Configuration
+
+Required only when `AUTH_PROVIDER=google`:
+
+| Variable              | Description      | Example                | Required |
+| --------------------- | ---------------- | ---------------------- | -------- |
+| `GOOGLE_CLIENT_ID`    | OAuth client ID  | `abc123...`            | Yes      |
+| `GOOGLE_CLIENT_SECRET`| Client secret    | `xyz789...`            | Yes      |
+| `GOOGLE_OAUTH_SCOPES` | OAuth 2.0 scopes | `openid email profile` | Yes      |
 
 ### Using with Your Backend
 
