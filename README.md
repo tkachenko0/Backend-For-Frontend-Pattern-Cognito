@@ -481,6 +481,10 @@ MIT
 
 ## TODOs
 
+**Priority**:
+
+- [ ] Add CSRF Tokens
+
 - [ ] Optimize logging for production: Move `pino-pretty` back to devDependencies and use conditional JSON logging (check `NODE_ENV`, remove pino-pretty transport in production, update Dockerfile to set `ENV NODE_ENV=production`)
 - [ ] Check the cognito endpoints and their specification
 - [ ] Use code also in the logout endpoints
