@@ -1,5 +1,10 @@
 import type { Response, Request } from 'express';
-import { AuthCookieName, CookieName, OAuthCookieName } from './cookie.types';
+import {
+  AuthCookieName,
+  CookieName,
+  CsrfCookieName,
+  OAuthCookieName,
+} from './cookie.types';
 
 export class CookieService {
   setAuthToken(
@@ -36,6 +41,20 @@ export class CookieService {
       secure: true,
       sameSite: 'lax',
       maxAge: 10 * 60 * 1000,
+    });
+  }
+
+  setCsrfCookie(
+    res: Response,
+    name: CsrfCookieName,
+    value: string,
+    expiresInSeconds: number,
+  ): void {
+    res.cookie(name, value, {
+      httpOnly: false,
+      secure: true,
+      sameSite: 'strict',
+      maxAge: expiresInSeconds * 1000,
     });
   }
 

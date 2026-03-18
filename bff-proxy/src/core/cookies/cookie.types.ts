@@ -6,4 +6,6 @@ export type OAuthCookieName =
   | 'code_verifier'
   | 'return_to';
 
-export type CookieName = AuthCookieName | OAuthCookieName;
+export type CsrfCookieName = 'csrf_token';
+
+export type CookieName = AuthCookieName | OAuthCookieName | CsrfCookieName;

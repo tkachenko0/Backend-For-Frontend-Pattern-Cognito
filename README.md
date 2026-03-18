@@ -49,6 +49,7 @@ Most examples I found were either incomplete, used insecure token storage, or la
 - OAuth 2.0 + PKCE authentication flow with
 - Secure token storage in HTTP-only cookies
 - Token validation and automatic refresh
+- CSRF protection using Double Submit Cookie pattern
 - Proxying requests to your backend with user headers
 
 **This BFF does NOT handle:**
@@ -78,6 +79,7 @@ Your backend is responsible for authorization, but this is simple work since you
 - [Cookies Security](#cookies-security)
   - [Auth Cookies](#auth-cookies-after-successful-login)
   - [OAuth State Cookies](#oauth-state-cookies-during-login-flow)
+  - [CSRF Token Cookie](#csrf-token-cookie-after-successful-login)
 - [Vulnerabilities Mitigations](#vulnerabilities-mitigations)
   - [XSS (Cross-Site Scripting)](#xss-cross-site-scripting)
   - [CSRF (Cross-Site Request Forgery)](#csrf-cross-site-request-forgery)
@@ -85,6 +87,7 @@ Your backend is responsible for authorization, but this is simple work since you
   - [JWT Signature Verification](#jwt-signature-verification)
   - [Audience Claim Validation](#audience-claim-validation)
   - [Sub Claim Validation](#sub-claim-validation)
+  - [Token Consistency](#token-consistency)
   - [Authorization Code Interception](#authorization-code-interception)
   - [State Parameter](#state-parameter)
   - [Nonce Parameter](#nonce-parameter)
@@ -133,7 +136,7 @@ sequenceDiagram
     Note over IDP: Validates:<br/>SHA256(code_verifier) === code_challenge
     IDP->>BFF: id_token, access_token, refresh_token
     Note over BFF: Verify JWT signatures<br/>Validate nonce, iss, aud, exp<br/>Check sub matching
-    BFF->>Browser: Delete: oauth_state, oauth_nonce, code_verifier<br/>Set: id_token, access_token, refresh_token<br/>(HttpOnly, Secure, SameSite=Strict)<br/>HTTP 302 Redirect to frontend
+    BFF->>Browser: Delete: oauth_state, oauth_nonce, code_verifier<br/>Set: id_token, access_token, refresh_token<br/>(HttpOnly, Secure, SameSite=Strict)<br/>Set: csrf_token (JS-readable, Secure, SameSite=Strict)<br/>HTTP 302 Redirect to frontend
 
     Note over Browser,Backend: 2. API Requests (Authenticated)
 
@@ -159,7 +162,7 @@ sequenceDiagram
 
     Browser->>BFF: GET /auth/logout<br/>Cookie: id_token, access_token, refresh_token
     BFF->>IDP: POST /revoke<br/>token + client_secret
-    BFF->>Browser: Clear all cookies<br/>HTTP 302 Redirect to IDP logout
+    BFF->>Browser: Clear all cookies (including csrf_token)<br/>HTTP 302 Redirect to IDP logout
     Browser->>IDP: GET /logout
     IDP->>Browser: HTTP 302 Redirect
     Browser->>BFF: GET /auth/signout-callback
@@ -314,6 +317,38 @@ Auth tokens use `strict`
 
 Theese use `lax` to allow Identity Provider to redirect back to `/auth/callback` with cookies intact.
 
+### CSRF Token Cookie (after successful login)
+
+- csrf_token
+
+This cookie uses `httpOnly: false` (intentionally readable by JavaScript), `secure: true`, and `sameSite: strict`.
+
+The CSRF token uses the Double Submit Cookie pattern:
+
+1. BFF generates a random token and sets it as a cookie after login
+2. Frontend reads the cookie value via JavaScript and sends it as `X-CSRF-Token` header on every request to `/api/*`
+3. BFF middleware validates that the header value matches the cookie value on any authenticated request (if any auth cookie is present)
+
+The token is renewed automatically during token refresh and cleared on logout.
+
+**Why `httpOnly: false`?**
+
+Unlike auth tokens, the CSRF cookie must be readable by JavaScript so the frontend can include it as a request header. This is safe because:
+
+- The CSRF token is not an auth credential, knowing it alone doesn't grant access
+- An attacker on a different origin cannot read the cookie value (Same-Origin Policy)
+- The attacker's site can cause the browser to send the cookie automatically, but cannot read it to set the `X-CSRF-Token` header
+
+```javascript
+// Frontend reads the CSRF cookie and sends it as a header on every /api/* request
+const csrfToken = document.cookie.match(/csrf_token=([^;]*)/)?.[1];
+fetch("/api/data", {
+  method: "POST",
+  credentials: "include",
+  headers: { "X-CSRF-Token": csrfToken },
+});
+```
+
 ## Vulnerabilities Mitigations
 
 ### XSS (Cross-Site Scripting)
@@ -331,28 +366,31 @@ Theese use `lax` to allow Identity Provider to redirect back to `/auth/callback`
 
 ### CSRF (Cross-Site Request Forgery)
 
-**Attack:** Attacker tricks user into making unwanted requests.
-
-**Prevention:** `SameSite=strict` cookies are not sent on cross-site requests.
+**Attack:** Attacker tricks user into making unwanted requests from a different origin.
 
 ```html
 <!-- Attacker's site -->
 <form action="http://localhost:3000/api/transfer" method="POST">
   <input name="amount" value="1000" />
 </form>
-
-<!-- Result: Cookies not sent, request fails -->
 ```
 
-**Why no CSRF tokens (X-CSRF-Token headers)?**
+**Prevention (two layers):**
 
-Traditional CSRF tokens are not necessary because:
+1. **SameSite=strict cookies** - Auth cookies are never sent on cross-site requests
+2. **Double Submit Cookie pattern** - Any authenticated request to `/api/*` requires a valid `X-CSRF-Token` header that matches the `csrf_token` cookie. If any auth cookie is present, CSRF validation is enforced
 
-- Auth tokens use `sameSite: "strict"` - cookies never sent cross-site
-- Any request from external site (link, form, fetch) won't include auth cookies
-- OAuth flow uses `state` parameter validation (with `sameSite: "lax"` for callback)
+The attacker's site can cause the browser to send the `csrf_token` cookie automatically, but cannot read its value due to the Same-Origin Policy. Without the value, the attacker cannot set the `X-CSRF-Token` header, and the request is rejected.
 
-CSRF tokens would be needed if using `sameSite: "none"`.
+The BFF validates the match using `crypto.timingSafeEqual` to prevent timing attacks.
+
+```txt
+Attacker's site submits form to /api/transfer
+-> Browser sends csrf_token cookie automatically
+-> But attacker cannot read cookie value (Same-Origin Policy)
+-> Cannot set X-CSRF-Token header
+-> BFF rejects: header missing or mismatched
+```
 
 ### Token Theft via Man-in-the-Middle
 
@@ -379,7 +417,11 @@ This prevents tokens issued for other applications from being accepted.
 
 BFF validates that the `sub` (subject) claim matches between ID token and access token.
 The `sub` claim uniquely identifies the user.
-This prevents token substitution attacks and ensures ID token and access token belong to the same user
+This prevents token substitution attacks and ensures ID token and access token belong to the same user.
+
+### Token Consistency
+
+The BFF always sets `id_token` and `access_token` together. If only one is present in a request, the session is considered tampered. All cookies are cleared and the request is rejected.
 
 ### Authorization Code Interception
 
@@ -483,7 +525,7 @@ MIT
 
 **Priority**:
 
-- [ ] Add CSRF Tokens
+- [x] Add CSRF Tokens
 
 - [ ] Optimize logging for production: Move `pino-pretty` back to devDependencies and use conditional JSON logging (check `NODE_ENV`, remove pino-pretty transport in production, update Dockerfile to set `ENV NODE_ENV=production`)
 - [ ] Check the cognito endpoints and their specification

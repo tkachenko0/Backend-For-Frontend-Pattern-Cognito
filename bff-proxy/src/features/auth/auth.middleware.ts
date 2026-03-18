@@ -6,6 +6,7 @@ import { CookieService } from '../../core/cookies/cookie.service';
 import type { JwtPayload } from 'jsonwebtoken';
 import type { Container } from '../../core/di/container';
 import { ConfigService } from '../../core/config/config';
+import { setCsrfToken } from '../../core/csrf/csrf.utils';
 
 export function createAuthMiddleware(container: Container) {
   const authProvider = container.get(AuthProvider);
@@ -29,6 +30,22 @@ export function createAuthMiddleware(container: Container) {
       skipAudience: true,
     });
 
+    const hasIdToken = Boolean(idToken);
+    const hasAccessToken = Boolean(accessToken);
+
+    if (hasIdToken !== hasAccessToken) {
+      logger.warn(
+        'Unexpected token combination: %s',
+        hasIdToken ? 'id_token without access_token' : 'access_token without id_token',
+      );
+      cookieService.clear(res, 'id_token');
+      cookieService.clear(res, 'access_token');
+      cookieService.clear(res, 'refresh_token');
+      cookieService.clear(res, 'csrf_token');
+      res.status(401).json({ error: 'Invalid session' });
+      return;
+    }
+
     if (
       verifiedIdToken &&
       decodedAccessToken &&
@@ -38,7 +55,8 @@ export function createAuthMiddleware(container: Container) {
       cookieService.clear(res, 'id_token');
       cookieService.clear(res, 'access_token');
       cookieService.clear(res, 'refresh_token');
-      next();
+      cookieService.clear(res, 'csrf_token');
+      res.status(401).json({ error: 'Invalid session' });
       return;
     }
 
@@ -136,11 +154,14 @@ async function refreshTokens(
       );
     }
 
+    setCsrfToken(res, cookieService, data.expires_in);
+
     req.user = decodedIdToken;
   } catch (err) {
     logger.warn({ err }, 'Token refresh failed');
     cookieService.clear(res, 'id_token');
     cookieService.clear(res, 'access_token');
     cookieService.clear(res, 'refresh_token');
+    cookieService.clear(res, 'csrf_token');
   }
 }

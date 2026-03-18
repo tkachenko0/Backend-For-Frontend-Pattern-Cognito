@@ -6,6 +6,8 @@ import { CookieService } from '../../../core/cookies/cookie.service';
 import { ConfigService } from '../../../core/config/config';
 import type { Container } from '../../../core/di/container';
 
+import { setCsrfToken } from '../../../core/csrf/csrf.utils';
+
 export function createCallbackHandler(container: Container) {
   const authProvider = container.get(AuthProvider);
   const cookieService = container.get(CookieService);
@@ -104,6 +106,8 @@ export function createCallbackHandler(container: Container) {
           jwtService.getTokenExpires(data.refresh_token),
         );
       }
+
+      setCsrfToken(res, cookieService, data.expires_in);
 
       const returnTo = cookieService.get(req, 'return_to');
       if (returnTo) {

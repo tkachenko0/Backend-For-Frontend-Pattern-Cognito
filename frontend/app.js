@@ -1,10 +1,18 @@
 const API_URL = "http://localhost:8080";
 let profileData = null;
 
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function checkAuth() {
   try {
     const res = await fetch(`${API_URL}/auth/status`, {
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (res.ok) {
       const data = await res.json();
@@ -25,6 +33,9 @@ async function loadProfile() {
   try {
     const res = await fetch(`${API_URL}/api/user`, {
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (res.ok) {
       const data = await res.json();
@@ -57,6 +68,9 @@ async function fetchProtected() {
   try {
     const res = await fetch(`${API_URL}/api/protected`, {
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));
@@ -96,6 +110,9 @@ async function incrementCounter() {
     const res = await fetch(`${API_URL}/api/counter/increment`, {
       method: "POST",
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));
@@ -117,6 +134,9 @@ async function checkCounter() {
   try {
     const res = await fetch(`${API_URL}/api/counter`, {
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));
@@ -142,6 +162,9 @@ async function fetchUserInfo() {
   try {
     const res = await fetch(`${API_URL}/auth/userinfo`, {
       credentials: "include",
+      headers: {
+        "X-CSRF-Token": getCsrfToken(),
+      },
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({ error: res.statusText }));

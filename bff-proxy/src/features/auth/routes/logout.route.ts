@@ -23,6 +23,8 @@ export function createLogoutHandler(container: Container) {
       logger.info(`User logged out (no refresh token to revoke) [${userId}]`);
     }
 
+    cookieService.clear(res, 'csrf_token');
+
     const logoutUrl = authProvider.getLogoutUrl();
     logger.info(`Redirecting to auth provider logout: ${logoutUrl}`);
     res.redirect(logoutUrl);
