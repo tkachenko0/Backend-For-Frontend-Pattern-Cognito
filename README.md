@@ -378,29 +378,17 @@ fetch("/api/data", {
 **Prevention (two layers):**
 
 1. **SameSite=strict cookies** - Auth cookies are never sent on cross-site requests
-2. **Double Submit Cookie pattern** - Any authenticated request to `/api/*` requires a valid `X-CSRF-Token` header that matches the `csrf_token` cookie. If any auth cookie is present, CSRF validation is enforced
+2. **Double Submit Cookie pattern** - Any authenticated request requires a valid `X-CSRF-Token` header that matches the `csrf_token` cookie.
 
-The attacker's site can cause the browser to send the `csrf_token` cookie automatically, but cannot read its value due to the Same-Origin Policy. Without the value, the attacker cannot set the `X-CSRF-Token` header, and the request is rejected.
+The attacker's site can cause the browser to send the `csrf_token` cookie automatically, but cannot read its value. Without the value, the attacker cannot correctly set `X-CSRF-Token` header.
 
 The BFF validates the match using `crypto.timingSafeEqual` to prevent timing attacks.
-
-```txt
-Attacker's site submits form to /api/transfer
--> Browser sends csrf_token cookie automatically
--> But attacker cannot read cookie value (Same-Origin Policy)
--> Cannot set X-CSRF-Token header
--> BFF rejects: header missing or mismatched
-```
 
 ### Token Theft via Man-in-the-Middle
 
 **Attack:** Attacker intercepts network traffic to steal tokens.
 
 **Prevention:** `secure: true` ensures cookies only sent over HTTPS.
-
-```txt
-Attacker intercepts HTTP traffic -> Sees encrypted HTTPS -> Cannot read cookies
-```
 
 ### JWT Signature Verification
 
@@ -433,7 +421,6 @@ The BFF always sets `id_token` and `access_token` together. If only one is prese
 Attacker intercepts: code=ABC123
 Attacker tries: POST /oauth2/token with code=ABC123
 Identity Provider requires: code_verifier (attacker doesn't have it)
-Result: Token exchange fails
 ```
 
 #### Normal login with PKCE (no attack)
@@ -523,12 +510,10 @@ MIT
 
 ## TODOs
 
-**Priority**:
-
 - [x] Add CSRF Tokens
-
-- [ ] Optimize logging for production: Move `pino-pretty` back to devDependencies and use conditional JSON logging (check `NODE_ENV`, remove pino-pretty transport in production, update Dockerfile to set `ENV NODE_ENV=production`)
+- [ ] Expllin why an atcker can not set correctly the CSRF Token
+- [ ] Optimize logging for production: Move `pino-pretty` to devDependencies and use JSON logging (check `NODE_ENV`, remove pino-pretty transport in production, update Dockerfile to set `ENV NODE_ENV=production`)
 - [ ] Check the cognito endpoints and their specification
-- [ ] Use code also in the logout endpoints
+- [ ] Use code also in the logout endpoints, seen somewhere
 - [ ] Add nbf (not before) claim validation - ensures token isn't used before its valid time
 - [ ] Add iat (issued at) claim validation - helps detect token age anomalies
