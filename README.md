@@ -1,5 +1,7 @@
 # OAuth2 Backend for Frontend Proxy
 
+> **Note:** This project is not production-ready yet. It's getting very close, needs proper testing before it can be considered stable. Coming soon.
+
 Reusable Backend-for-Frontend (BFF) proxy with OAuth 2.0 + PKCE authentication. Tokens are stored in HTTP-only cookies, and authenticated requests are proxied to your backend with user context injected as headers.
 
 **Supported providers:** AWS Cognito, Microsoft Entra ID, Keycloak
