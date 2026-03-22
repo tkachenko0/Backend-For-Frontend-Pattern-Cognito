@@ -519,3 +519,4 @@ MIT
 - [ ] Use code also in the logout endpoints, seen somewhere
 - [ ] Add nbf (not before) claim validation - ensures token isn't used before its valid time
 - [ ] Add iat (issued at) claim validation - helps detect token age anomalies
+- [ ] Learn more about OpenID Connect and refactor the related methods
