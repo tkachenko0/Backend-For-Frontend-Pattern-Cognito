@@ -520,3 +520,4 @@ MIT
 - [ ] Add nbf (not before) claim validation - ensures token isn't used before its valid time
 - [ ] Add iat (issued at) claim validation - helps detect token age anomalies
 - [ ] Learn more about OpenID Connect and refactor the related methods
+- [ ] Learn the protection using `nonce` and check if implemented correctly (should prevent reply attacks)
