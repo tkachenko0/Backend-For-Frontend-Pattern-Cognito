@@ -521,3 +521,4 @@ MIT
 - [ ] Add iat (issued at) claim validation - helps detect token age anomalies
 - [ ] Learn more about OpenID Connect and refactor the related methods
 - [ ] Learn the protection using `nonce` and check if implemented correctly (should prevent reply attacks)
+- [ ] Implement Refresh Token Reuse Detection - if any refresh token in the chain is reused the entire chain is invalidated. See: [Auth0 - Refresh Token Rotation](https://auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation), [RFC 6749 Section 10.4](https://datatracker.ietf.org/doc/html/rfc6749#section-10.4), [IETF OAuth Security Best Current Practice](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#name-refresh-token-protection)
